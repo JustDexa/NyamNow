@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Send, MessageSquare, Search, ChevronLeft, Store } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -19,7 +19,8 @@ interface Conversation {
   stores: { name: string; profile_image_url: string } 
 }
 
-export default function BuyerChatsPage() {
+// ✅ 1. Komponen isi Chat kita pisah ke sini
+function ChatContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const targetId = searchParams.get('id') // Buat nangkep id dari tombol "Hubungi Penjual"
@@ -231,5 +232,19 @@ export default function BuyerChatsPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function BuyerChatsPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen w-full flex items-center justify-center bg-[#FDFCF8]">
+        <div className="animate-pulse text-[#B89B6D] font-black tracking-widest uppercase text-sm">
+          Menyiapkan Ruang Chat...
+        </div>
+      </div>
+    }>
+      <ChatContent />
+    </Suspense>
   )
 }
