@@ -1,0 +1,338 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { supabase } from '@/lib/supabase'
+import NavbarBuyer from '@/components/NavbarBuyer'
+import { Clock, CheckCircle2, XCircle, Utensils, ShoppingBag, ChevronRight, AlertCircle, PackageCheck, QrCode, ScanLine, Info } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useRouter } from 'next/navigation'
+
+// --- INTERFACES ---
+interface OrderItem {
+  id: string
+  product_id: string
+  quantity: number
+  price: number
+  variant: string | null
+  products: { name: string; image_url: string; estimated_time: number }
+}
+
+interface Order {
+  id: string
+  store_id: string
+  status: string
+  grand_total: number
+  order_type: string
+  confirmation_expires_at: string
+  payment_expires_at: string
+  created_at: string
+  stores: { name: string }
+  order_items: OrderItem[]
+}
+
+// ==========================================
+// KOMPONEN KARTU PESANAN PEMBELI 
+// ==========================================
+function BuyerOrderCard({ order, onPay }: { order: Order, onPay: (id: string, amount: number) => void }) {
+  const [timeLeft, setTimeLeft] = useState<string>('00:00')
+  const [isExpired, setIsExpired] = useState(false)
+
+  // ✅ LOGIKA ESTIMASI WAKTU MASAK
+  // Cari waktu terlama dari semua menu yang dipesan. Default 15 menit kalau kosong/0.
+  const maxEstTime = Math.max(0, ...order.order_items.map(item => item.products?.estimated_time || 0))
+  const finalEstTime = maxEstTime > 0 ? maxEstTime : 15
+
+  const autoCancelOrder = useCallback(async () => {
+    if (order.status === 'cancelled') return
+    await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id)
+  }, [order.id, order.status])
+
+  useEffect(() => {
+    if (order.status !== 'waiting_confirmation' && order.status !== 'waiting_payment') return
+
+    const targetTime = order.status === 'waiting_confirmation' 
+      ? new Date(order.confirmation_expires_at).getTime()
+      : new Date(order.payment_expires_at).getTime()
+
+    const updateTimer = () => {
+      const now = new Date().getTime()
+      const diff = targetTime - now
+
+      if (diff <= 0) {
+        setTimeLeft('00:00')
+        setIsExpired(true)
+        autoCancelOrder()
+        return true
+      } else {
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+        const secs = Math.floor((diff % (1000 * 60)) / 1000)
+        setTimeLeft(`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`)
+        return false
+      }
+    }
+
+    const expiredInitial = updateTimer()
+    if (expiredInitial) return
+
+    const timer = setInterval(() => {
+      const expired = updateTimer()
+      if (expired) clearInterval(timer)
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [order.status, order.confirmation_expires_at, order.payment_expires_at, autoCancelOrder])
+
+  return (
+    <motion.div 
+      layout
+      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+      className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm overflow-hidden relative"
+    >
+      <div className="flex justify-between items-center border-b border-gray-100 pb-3 mb-4">
+        <div className="flex items-center gap-2">
+          <Utensils size={16} className="text-[#B89B6D]" />
+          <span className="font-black text-sm text-gray-900">{order.stores?.name}</span>
+          <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-bold uppercase">{order.order_type}</span>
+        </div>
+        
+        <div className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
+          {order.status === 'waiting_confirmation' && <span className="text-orange-500 flex items-center gap-1"><Clock size={12}/> Menunggu ACC</span>}
+          {order.status === 'waiting_payment' && <span className="text-blue-500 flex items-center gap-1"><AlertCircle size={12}/> Perlu Dibayar</span>}
+          {order.status === 'processing' && <span className="text-purple-500">Sedang Dimasak</span>}
+          {order.status === 'ready_for_pickup' && <span className="text-teal-500 flex items-center gap-1"><PackageCheck size={12}/> Siap Diambil</span>}
+          {order.status === 'completed' && <span className="text-green-500 flex items-center gap-1"><CheckCircle2 size={12}/> Selesai</span>}
+          {order.status === 'cancelled' && <span className="text-red-500 flex items-center gap-1"><XCircle size={12}/> Dibatalkan</span>}
+        </div>
+      </div>
+
+      <div className="space-y-3 mb-4">
+        {order.order_items.map(item => (
+          <div key={item.id} className="flex items-center gap-3">
+            <img src={item.products?.image_url || '/images/iconNyamnow.png'} className="w-12 h-12 rounded-lg object-cover bg-gray-100" />
+            <div className="flex-1 text-left">
+              <h4 className="text-xs font-black text-gray-900">{item.products?.name}</h4>
+              {item.variant && <p className="text-[9px] text-gray-500 font-bold">{item.variant}</p>}
+              <p className="text-[10px] text-gray-400">{item.quantity} x Rp{item.price.toLocaleString('id-ID')}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+        <div className="text-left">
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Total Belanja</p>
+          <p className="text-sm font-black text-[#a08055]">Rp{order.grand_total.toLocaleString('id-ID')}</p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {(order.status === 'waiting_confirmation' || order.status === 'waiting_payment') && (
+            <div className="text-right bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100">
+              <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest">{order.status === 'waiting_payment' ? 'Sisa Waktu Bayar' : 'Batas Konfirmasi'}</p>
+              <p className={`text-sm font-black ${isExpired ? 'text-red-500' : 'text-orange-600'}`}>{timeLeft}</p>
+            </div>
+          )}
+
+          {/* ✅ UI ESTIMASI WAKTU MASAK MUNCUL DI SINI */}
+          {order.status === 'processing' && (
+            <div className="text-right bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100">
+              <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest">Estimasi Dimasak</p>
+              <p className="text-sm font-black text-purple-600">~{finalEstTime} Menit</p>
+            </div>
+          )}
+
+          {order.status === 'waiting_payment' && !isExpired && (
+            <button 
+              onClick={() => onPay(order.id, order.grand_total)}
+              className="bg-[#B89B6D] hover:bg-[#a08055] text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center gap-2"
+            >
+              <QrCode size={16} /> Bayar Sekarang
+            </button>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// ==========================================
+// HALAMAN UTAMA RIWAYAT PESANAN PEMBELI
+// ==========================================
+export default function OrdersPage() {
+  const router = useRouter()
+  const [activeTab, setActiveTab] = useState('semua')
+  const [orders, setOrders] = useState<Order[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [userName, setUserName] = useState<string | null>(null)
+  const [paymentModal, setPaymentModal] = useState({ isOpen: false, orderId: '', amount: 0 })
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false)
+
+  const TABS = [
+    { id: 'semua', label: 'Semua', statuses: ['waiting_confirmation', 'waiting_payment', 'processing', 'ready_for_pickup', 'completed', 'cancelled'] },
+    { id: 'konfirmasi', label: 'Menunggu Konfirmasi', statuses: ['waiting_confirmation'] },
+    { id: 'bayar', label: 'Menunggu Pembayaran', statuses: ['waiting_payment'] },
+    { id: 'proses', label: 'Diproses', statuses: ['processing', 'ready_for_pickup'] },
+    { id: 'selesai', label: 'Selesai', statuses: ['completed'] },
+    { id: 'batal', label: 'Dibatalkan', statuses: ['cancelled'] }
+  ]
+
+useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel>
+
+    const initData = async () => {
+      setIsLoading(true)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return router.push('/login')
+
+      const { data: userData } = await supabase.from('users').select('first_name').eq('id', user.id).single()
+      if (userData) setUserName(userData.first_name)
+
+      const fetchOrders = async () => {
+        const { data: orderData, error } = await supabase
+          .from('orders')
+          .select(`*, stores (name), order_items ( *, products (name, image_url, estimated_time) )`)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+
+        if (!error && orderData) setOrders(orderData as unknown as Order[])
+      }
+
+      await fetchOrders()
+      setIsLoading(false)
+
+      // ✅ FIX REALTIME: Pakai metode "Direct State Injection" biar SUPER INSTAN
+      channel = supabase
+        .channel('buyer_orders_realtime')
+        .on('postgres_changes', { 
+          event: 'UPDATE', // Nangkep kalau Penjual nge-klik ACC / Selesai
+          schema: 'public', 
+          table: 'orders',
+          filter: `user_id=eq.${user.id}`
+        }, (payload) => {
+          // Langsung timpa data di layar pakai data baru dari server tanpa nunggu fetch!
+          setOrders(prevOrders => prevOrders.map(order => 
+            order.id === payload.new.id 
+              ? { ...order, ...payload.new } 
+              : order
+          ))
+        })
+        .on('postgres_changes', { 
+          event: 'INSERT', // Cuma fetch ulang kalau ada order yang baru banget dibuat
+          schema: 'public', 
+          table: 'orders',
+          filter: `user_id=eq.${user.id}`
+        }, () => {
+          fetchOrders()
+        })
+        .subscribe()
+    }
+
+    initData()
+
+    return () => { if (channel) supabase.removeChannel(channel) }
+  }, [router])
+
+  const handleConfirmPayment = async () => {
+    setIsProcessingPayment(true)
+    const { error } = await supabase.from('orders').update({ status: 'processing' }).eq('id', paymentModal.orderId)
+    if (!error) setPaymentModal({ isOpen: false, orderId: '', amount: 0 })
+    setIsProcessingPayment(false)
+  }
+
+  const currentTabConfig = TABS.find(t => t.id === activeTab)
+  const filteredOrders = orders.filter(o => currentTabConfig?.statuses.includes(o.status))
+
+  return (
+    <div className="min-h-screen bg-[#FDFCF8] text-black font-sans antialiased pb-20">
+      <NavbarBuyer userName={userName} handleLogout={() => supabase.auth.signOut().then(() => router.push('/login'))} />
+
+      <div className="max-w-6xl mx-auto px-6 mt-8 text-center">
+        <h1 className="text-2xl font-black text-gray-900 mb-6 uppercase italic tracking-tighter text-left">Riwayat Pesanan</h1>
+
+        <div className="mb-8 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 w-fit mx-auto min-w-full md:min-w-0">
+          <div className="flex flex-row items-center gap-1 overflow-x-auto no-scrollbar">
+            {TABS.map(tab => {
+              const isActive = activeTab === tab.id
+              const count = orders.filter(o => tab.statuses.includes(o.status)).length
+
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`relative px-4 py-2.5 rounded-xl transition-all text-center flex items-center justify-center gap-2 whitespace-nowrap ${
+                    isActive ? 'text-white' : 'text-gray-400 hover:bg-gray-50'
+                  }`}
+                >
+                  {isActive && <motion.div layoutId="orderTab" className="absolute inset-0 bg-[#B89B6D] rounded-xl z-0" />}
+                  <span className="relative z-10 text-[10px] md:text-xs font-black uppercase tracking-widest whitespace-nowrap">{tab.label}</span>
+                  {count > 0 && tab.id !== 'semua' && (
+                    <span className={`relative z-10 w-4 h-4 md:w-5 md:h-5 flex items-center justify-center rounded-full text-[8px] md:text-[9px] flex-shrink-0 ${isActive ? 'bg-white text-[#B89B6D]' : 'bg-gray-100 text-gray-500'}`}>{count}</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* ✅ PERINGATAN TAB SELESAI */}
+        <AnimatePresence>
+          {activeTab === 'selesai' && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0, marginBottom: 0 }} 
+              animate={{ opacity: 1, height: 'auto', marginBottom: 16 }} 
+              exit={{ opacity: 0, height: 0, marginBottom: 0 }} 
+              className="max-w-4xl mx-auto overflow-hidden text-left"
+            >
+              <div className="bg-green-50 border border-green-200 p-4 rounded-2xl flex items-start gap-3 shadow-sm">
+                <Info className="text-green-600 flex-shrink-0 mt-0.5" size={20} />
+                <div>
+                  <p className="text-[10px] font-black text-green-800 uppercase tracking-widest mb-1">Pemberitahuan</p>
+                  <p className="text-xs font-bold text-green-700">Pesanan sudah dapat diambil bila status sudah selesai.</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ORDER LIST */}
+        <div className="max-w-4xl mx-auto space-y-4">
+          {isLoading ? (
+            <div className="py-20 text-[#B89B6D] font-black animate-pulse">Memuat Pesanan...</div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="py-20 text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200">
+              <ShoppingBag size={48} className="mx-auto mb-4 opacity-30" />
+              <p className="font-bold text-sm">Belum ada pesanan di kategori ini.</p>
+            </div>
+          ) : (
+            <AnimatePresence>
+              {filteredOrders.map(order => (
+                <BuyerOrderCard 
+                  key={order.id} 
+                  order={order} 
+                  onPay={(id, amount) => setPaymentModal({ isOpen: true, orderId: id, amount })} 
+                />
+              ))}
+            </AnimatePresence>
+          )}
+        </div>
+      </div>
+
+      {/* MODAL QRIS */}
+      <AnimatePresence>
+        {paymentModal.isOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white p-8 rounded-[2rem] shadow-2xl flex flex-col items-center text-center max-w-sm w-full relative">
+              <button onClick={() => setPaymentModal({ isOpen: false, orderId: '', amount: 0 })} className="absolute top-5 right-5 p-2 bg-gray-100 rounded-full text-gray-400 hover:text-red-500"><XCircle size={20} /></button>
+              <div className="flex items-center gap-2 mb-6 text-xl font-black italic tracking-tighter text-[#1f285c]"><QrCode size={24} className="text-blue-600"/> QRIS NYAMNOW</div>
+              <div className="w-56 h-56 bg-white border-4 border-gray-100 rounded-2xl relative overflow-hidden mb-6 flex items-center justify-center p-2 shadow-inner">
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=NYAMNOW-${paymentModal.orderId}`} alt="QRIS" className="w-full h-full opacity-80" />
+                <motion.div initial={{ top: '0%' }} animate={{ top: '100%' }} transition={{ repeat: Infinity, duration: 2, ease: "linear", repeatType: "reverse" }} className="absolute left-0 w-full h-1 bg-green-400 shadow-[0_0_15px_rgba(74,222,128,0.8)] z-10" />
+              </div>
+              <p className="text-3xl font-black text-[#B89B6D] mb-6">Rp {paymentModal.amount.toLocaleString('id-ID')}</p>
+              <button onClick={handleConfirmPayment} disabled={isProcessingPayment} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-black uppercase tracking-widest transition-all shadow-md active:scale-95 disabled:opacity-50">{isProcessingPayment ? 'Memverifikasi...' : 'Simulasi Bayar Berhasil'}</button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}

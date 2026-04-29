@@ -9,12 +9,25 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.100.1",
+    "axios": "^1.13.6",
+    "framer-motion": "^12.38.0",
+    "leaflet": "^1.9.4",
+    "leaflet-geosearch": "^4.4.0",
+    "lucide-react": "^1.7.0",
     "next": "16.2.1",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "react-hot-toast": "^2.6.0",
+    "react-image-crop": "^11.0.10",
+    "react-leaflet": "^5.0.0",
+    "sweetalert2": "^11.26.24",
+    "sweetalert2-react-content": "^5.1.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/leaflet": "^1.9.21",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
