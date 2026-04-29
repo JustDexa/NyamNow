@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter } from 'next/navigation'
-import { useState, useRef, ChangeEvent, useEffect } from 'react'
+import { useState, useRef, ChangeEvent, useEffect, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
@@ -25,7 +25,8 @@ function centerAspectCrop(mediaWidth: number, mediaHeight: number, aspect: numbe
   )
 }
 
-export default function SellerFormPage() {
+// ✅ 1. NAMA FUNGSI DIUBAH JADI COMPONENT BIASA (Tanpa export default)
+function SellerFormContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const type = searchParams.get('type') || 'Umum'
@@ -195,7 +196,7 @@ export default function SellerFormPage() {
       {/* KANAN: FORM ATAU COMING SOON */}
       <div className="w-full lg:w-[55%] h-full bg-[#3b5998] lg:rounded-l-[80px] relative shadow-[-20px_0_60px_rgba(0,0,0,0.1)] flex flex-col">
         
-        {/* ✅ LOGIKA PENCEGAHAN: Kalau type-nya berkembang, form di-hide */}
+        {/* LOGIKA PENCEGAHAN: Kalau type-nya berkembang, form di-hide */}
         {type.toLowerCase() === 'berkembang' ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 md:p-12 lg:p-20 text-center relative z-10">
             <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center">
@@ -355,6 +356,21 @@ export default function SellerFormPage() {
         )}
       </div>
     </div>
+  )
+}
+
+// ✅ 2. EXPORT DEFAULT UTAMA DIBUNGKUS SUSPENSE DI SINI
+export default function SellerFormPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen w-full flex items-center justify-center bg-white">
+        <div className="animate-pulse text-[#3b5998] font-black tracking-widest uppercase text-sm">
+          Menyiapkan Form...
+        </div>
+      </div>
+    }>
+      <SellerFormContent />
+    </Suspense>
   )
 }
 
