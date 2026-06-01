@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { 
   Search, MapPin, Heart, ShoppingCart, 
@@ -38,7 +38,8 @@ interface StorePromo {
   }
 }
 
-export default function CheckoutPage() {
+// ✅ 2. Ubah nama fungsi ini jadi CheckoutContent (hilangkan export default)
+function CheckoutContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   
@@ -501,5 +502,18 @@ export default function CheckoutPage() {
       </AnimatePresence>
         
     </div>
+  )
+}
+
+// ✅ 3. Bikin fungsi CheckoutPage yang isinya murni buat ngebungkus pakai Suspense
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#FDFCF8] flex items-center justify-center font-black text-[#B89B6D] animate-pulse">
+        Menyiapkan Halaman Checkout...
+      </div>
+    }>
+      <CheckoutContent />
+    </Suspense>
   )
 }
