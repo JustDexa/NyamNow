@@ -585,7 +585,6 @@ export default function StoreDetail() {
                          {priceInfo.hasPromo && <span className="text-[10px] font-bold text-gray-400 line-through">Rp{priceInfo.originalPrice.toLocaleString('id-ID')}</span>}
                       </div>
                       
-                      {/* ✅ INDIKATOR STOK REKOMENDASI */}
                       <div className="mb-3">
                         {product.stock > 5 ? (
                           <span className="text-[9px] font-black uppercase tracking-widest text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-100">Tersedia {product.stock} Porsi</span>
@@ -886,18 +885,32 @@ export default function StoreDetail() {
       {/* --- MODAL DETAIL PRODUK --- */}
       <AnimatePresence>
         {selectedProduct && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-slate-900/40 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-[#FDFCF8] w-full max-w-4xl rounded-3xl overflow-hidden flex flex-col md:flex-row shadow-2xl max-h-[90vh]">
-              <div className="w-full md:w-1/2 h-64 md:h-auto bg-gray-200 relative">
+          <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-slate-900/40 backdrop-blur-sm md:px-4">
+            <motion.div 
+              initial={{ opacity: 0, y: '100%' }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0, y: '100%' }} 
+              className="bg-[#FDFCF8] w-full md:max-w-4xl rounded-t-3xl md:rounded-3xl overflow-hidden flex flex-col md:flex-row shadow-2xl h-[90vh] md:h-auto md:max-h-[90vh]"
+            >
+              {/* Bagian Kiri: Gambar (Mobile ditaruh atas) */}
+              <div className="w-full md:w-1/2 h-56 md:h-auto bg-gray-200 relative flex-shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={selectedProduct.image_url} alt={selectedProduct.name} className="w-full h-full object-cover" />
-                <button onClick={() => setSelectedProduct(null)} className="absolute top-4 right-4 bg-white/80 backdrop-blur p-2 rounded-full text-gray-800 hover:bg-white transition-colors shadow-md md:hidden"><X size={20} /></button>
+                <button onClick={() => setSelectedProduct(null)} className="absolute top-4 right-4 bg-white/80 backdrop-blur p-2 rounded-full text-gray-800 hover:bg-white transition-colors shadow-md md:hidden z-50">
+                  <X size={20} />
+                </button>
               </div>
-              <div className="w-full md:w-1/2 flex flex-col h-full bg-white relative max-h-[90vh] text-left">
-                <button onClick={() => setSelectedProduct(null)} className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full text-gray-500 hover:bg-gray-200 transition-colors hidden md:block z-20"><X size={20} /></button>
-                <div className="p-8 pb-4 bg-white z-10">
-                  <div className="flex justify-between items-start mr-8">
-                    <h2 className="text-2xl font-black text-gray-900 leading-tight">{selectedProduct.name}</h2>
+
+              {/* Bagian Kanan: Info & Action */}
+              <div className="w-full md:w-1/2 flex flex-col h-full bg-white relative text-left overflow-hidden">
+                <button onClick={() => setSelectedProduct(null)} className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full text-gray-500 hover:bg-gray-200 transition-colors hidden md:block z-20">
+                  <X size={20} />
+                </button>
+                
+                {/* Info Atas (Fixed, gak ikut scroll) */}
+                <div className="p-5 md:p-8 pb-3 md:pb-4 bg-white z-10 flex-shrink-0">
+                  <div className="flex justify-between items-start md:mr-8">
+                    <h2 className="text-xl md:text-2xl font-black text-gray-900 leading-tight">{selectedProduct.name}</h2>
                     <div className="flex items-center gap-1 text-gray-400">
                       <Heart size={16} className={userProductFavorites.includes(selectedProduct.id) ? "fill-red-500 text-red-500" : ""} />
                       <span className="text-xs font-bold">{productFavCounts[selectedProduct.id] || 0}</span>
@@ -911,10 +924,8 @@ export default function StoreDetail() {
                     return (
                       <div className="flex flex-wrap gap-2 mt-2 mb-1">
                         {activePromos.map(p => (
-                          <motion.div
+                          <div
                             key={p.id}
-                            initial={{ opacity: 0, y: -6 }}
-                            animate={{ opacity: 1, y: 0 }}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm ${
                               p.type === 'flash_sale'
                                 ? 'bg-orange-500 text-white'
@@ -925,37 +936,35 @@ export default function StoreDetail() {
                             {p.type === 'flash_sale'
                               ? `⚡ Flash Sale — Rp${(p.discount_price || 0).toLocaleString('id-ID')}`
                               : `🎟️ Beli ${p.buy_qty} Gratis ${p.get_qty}`}
-                          </motion.div>
+                          </div>
                         ))}
                       </div>
                     )
                   })()}
 
                   {promoApplied && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="flex items-center gap-2 bg-gradient-to-r from-[#B89B6D] to-[#a08055] text-white px-4 py-2 rounded-xl mb-4 shadow-lg"
-                    >
+                    <div className="flex items-center gap-2 bg-gradient-to-r from-[#B89B6D] to-[#a08055] text-white px-4 py-2 rounded-xl mt-2 mb-2 shadow-lg">
                       <Ticket size={16} />
-                      <span className="text-[10px] font-black uppercase tracking-widest italic">
-                        🎟️ PROMO TERPASANG: {promoApplied.title || 'Beli 1 Gratis 1'}
+                      <span className="text-[10px] font-black uppercase tracking-widest italic truncate">
+                        🎟️ PROMO: {promoApplied.title || 'Beli 1 Gratis 1'}
                       </span>
-                    </motion.div>
+                    </div>
                   )}
-                  <div className="flex items-center gap-1 mt-1 mb-4">
+
+                  <div className="flex items-center gap-1 mt-1 mb-3 md:mb-4">
                     {[1,2,3,4,5].map(star => <Star key={star} size={14} className="fill-yellow-400 text-yellow-400" />)}
                     <div className="bg-[#4CAF50] text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ml-1">5</div>
                   </div>
+
                   {(() => {
                     const priceInfo = getProductPrice(selectedProduct)
                     const variantExtraCost = Object.values(selectedVariants).reduce((sum, opt) => sum + opt.extra_price, 0)
                     const currentTotal = priceInfo.currentPrice + variantExtraCost
                     const originalTotal = priceInfo.originalPrice + variantExtraCost
                     return (
-                      <div className={`inline-flex items-end gap-2 px-5 py-3 rounded-xl shadow-sm ${priceInfo.hasPromo ? 'bg-orange-50 border border-orange-200 text-orange-700' : 'bg-[#B89B6D] text-white'}`}>
-                        <span className="text-2xl font-black leading-none">Rp{currentTotal.toLocaleString('id-ID')}</span>
-                        {priceInfo.hasPromo && <span className="text-sm font-bold opacity-60 line-through mb-0.5 text-gray-500">Rp{originalTotal.toLocaleString('id-ID')}</span>}
+                      <div className={`inline-flex items-end gap-2 px-4 md:px-5 py-2 md:py-3 rounded-xl shadow-sm ${priceInfo.hasPromo ? 'bg-orange-50 border border-orange-200 text-orange-700' : 'bg-[#B89B6D] text-white'}`}>
+                        <span className="text-xl md:text-2xl font-black leading-none">Rp{currentTotal.toLocaleString('id-ID')}</span>
+                        {priceInfo.hasPromo && <span className="text-xs md:text-sm font-bold opacity-60 line-through mb-0.5 text-gray-500">Rp{originalTotal.toLocaleString('id-ID')}</span>}
                       </div>
                     )
                   })()}
@@ -963,18 +972,18 @@ export default function StoreDetail() {
                   {/* ✅ INDIKATOR STOK DI DALAM MODAL */}
                   <div className="mt-3">
                     {selectedProduct.stock > 5 ? (
-                      <span className="text-[10px] font-black uppercase tracking-widest text-green-600 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">Tersedia {selectedProduct.stock} Porsi</span>
+                      <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-green-600 bg-green-50 px-2 md:px-3 py-1 md:py-1.5 rounded-lg border border-green-100">Tersedia {selectedProduct.stock} Porsi</span>
                     ) : selectedProduct.stock > 0 ? (
-                      <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100 animate-pulse">Sisa {selectedProduct.stock} Porsi!</span>
+                      <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-orange-600 bg-orange-50 px-2 md:px-3 py-1 md:py-1.5 rounded-lg border border-orange-100 animate-pulse">Sisa {selectedProduct.stock} Porsi!</span>
                     ) : (
-                      <span className="text-[10px] font-black uppercase tracking-widest text-red-500 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">Habis Terjual</span>
+                      <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-red-500 bg-red-50 px-2 md:px-3 py-1 md:py-1.5 rounded-lg border border-red-100">Habis Terjual</span>
                     )}
                   </div>
-
                 </div>
                 
-                <div className="px-8 pb-4 overflow-y-auto flex-1 no-scrollbar space-y-6">
-                  <p className="text-sm text-gray-500 leading-relaxed">{selectedProduct.description || 'Tidak ada deskripsi untuk menu ini.'}</p>
+                {/* Area Scroll (Bisa digeser) */}
+                <div className="px-5 md:px-8 pb-4 overflow-y-auto flex-1 no-scrollbar space-y-5 md:space-y-6">
+                  <p className="text-xs md:text-sm text-gray-500 leading-relaxed">{selectedProduct.description || 'Tidak ada deskripsi untuk menu ini.'}</p>
                   
                   <div className="space-y-4">
                     {selectedProduct.flavors && selectedProduct.flavors.length > 0 && (
@@ -1025,30 +1034,34 @@ export default function StoreDetail() {
                   </div>
                 </div>
 
-                <div className="p-6 bg-gray-50 border-t border-gray-100 flex items-center gap-4 z-10">
-                  <div className="flex items-center gap-4 bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm">
-                    <button onClick={() => setModalQty(Math.max(1, modalQty - 1))} className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors"><Minus size={18}/></button>
-                    <span className="font-black text-lg w-6 text-center">{modalQty}</span>
-                    {/* ✅ KUNCI PLUS DI MODAL KALAU STOK MENTOK */}
+                {/* Bottom Bar (Fixed, gak ikut scroll) */}
+                <div className="p-4 md:p-6 pb-6 md:pb-6 bg-white md:bg-gray-50 border-t border-gray-100 flex items-center gap-2 md:gap-4 z-10 flex-shrink-0 shadow-[0_-5px_15px_rgba(0,0,0,0.02)]">
+                  <div className="flex items-center gap-2 md:gap-4 bg-gray-50 md:bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm">
+                    <button onClick={() => setModalQty(Math.max(1, modalQty - 1))} className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors"><Minus size={16}/></button>
+                    <span className="font-black text-sm md:text-lg w-4 md:w-6 text-center">{modalQty}</span>
                     <button 
                       onClick={() => setModalQty(Math.min(selectedProduct.stock, modalQty + 1))} 
                       disabled={modalQty >= selectedProduct.stock}
-                      className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     >
-                      <Plus size={18}/>
+                      <Plus size={16}/>
                     </button>
                   </div>
-                  {/* ✅ TOMBOL CHECKOUT KEKUNCI KALAU HABIS */}
                   <button 
                     onClick={handleModalAddToCart} 
                     disabled={selectedProduct.stock <= 0}
-                    className={`flex-1 py-4 rounded-xl text-sm font-black uppercase tracking-widest shadow-md transition-all active:scale-95 ${
+                    className={`flex-1 py-3.5 md:py-4 rounded-xl text-xs md:text-sm font-black uppercase tracking-widest shadow-md transition-all active:scale-95 ${
                       selectedProduct.stock > 0 
                         ? 'bg-[#5D4037] hover:bg-[#4E342E] text-white' 
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     }`}
                   >
-                    {selectedProduct.stock > 0 ? 'Tambahkan Pesanan' : 'Habis'}
+                    {selectedProduct.stock > 0 ? (
+                      <>
+                        <span className="md:hidden">Tambah</span>
+                        <span className="hidden md:inline">Tambahkan Pesanan</span>
+                      </>
+                    ) : 'Habis'}
                   </button>
                 </div>
               </div>
