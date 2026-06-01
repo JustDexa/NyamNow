@@ -124,7 +124,7 @@ export default function RegisterBuyerPage() {
             {step === 1 ? 'Buat Akun' : 'Data Diri'}
           </h1>
           <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-10 text-left">
-            {step === 1 ? 'Langkah awal pemburu kuliner' : 'Lengkapi profil pembeli lo'}
+            {step === 1 ? 'Langkah awal pemburu kuliner' : 'Lengkapi profil pembeli'}
           </p>
 
           <div className="max-w-[400px]">

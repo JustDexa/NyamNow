@@ -695,7 +695,6 @@ function ModuleCampaign() {
             
             <div className="col-span-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1.5">Banner Image</label>
-              {/* ✅ Ukuran box upload diubah jadi mirip rasio kartu Promo Spesial (misal: 300x150px) */}
               <label className="flex items-center justify-center gap-3 w-[300px] h-[150px] border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-[#B89B6D] transition-colors bg-gray-50 overflow-hidden relative shadow-inner">
                 {preview ? (
                   <Image src={preview} alt="Preview" width={300} height={150} unoptimized className="w-full h-full object-cover" />

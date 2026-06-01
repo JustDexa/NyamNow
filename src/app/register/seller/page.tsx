@@ -77,7 +77,7 @@ export default function SellerTypePage() {
           <div className="p-10 flex flex-col items-center text-center flex-1">
             <div className="w-full aspect-video bg-orange-50 rounded-[30px] mb-8 flex items-center justify-center overflow-hidden">
                <img 
-                src="/images/gerobak_berkembang.png" // Sesuaikan nama filenya ya, misal mikro.png atau mikro.jpg
+                src="/images/gerobak_berkembang.png"
                 alt="UMKM Mikro" 
                 className="w-full h-full object-contain p-6 hover:scale-110 transition-transform duration-500" 
               />
