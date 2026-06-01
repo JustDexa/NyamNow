@@ -7,6 +7,7 @@ import { Search, X, Store as StoreIcon, Navigation } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import NavbarBuyer from '@/components/NavbarBuyer'
+import 'leaflet/dist/leaflet.css'
 
 export interface StoreData {
   id: string
@@ -139,6 +140,7 @@ export default function ExplorePage() {
                     className="px-5 py-3 hover:bg-[#FAF4EB] cursor-pointer flex items-center gap-4 transition-colors border-b border-gray-50 last:border-0"
                   >
                     <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={store.profile_image_url} alt={store.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1">

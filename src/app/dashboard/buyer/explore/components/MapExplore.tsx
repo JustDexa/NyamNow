@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
@@ -56,7 +56,7 @@ export default function MapExplore({
 }) {
   const router = useRouter()
   const [selectedStore, setSelectedStore] = useState<StoreData | null>(null)
-  const mapCenter = useMemo(() => userLocation, [userLocation[0], userLocation[1]]);
+  const mapCenter = useMemo(() => userLocation, [userLocation]);
   
   // Mencegah re-render icon yang tidak perlu
   const userIcon = useMemo(() => L.divIcon({
@@ -71,33 +71,30 @@ export default function MapExplore({
     iconAnchor: [20, 20]
   }), [])
 
-  const createStoreIcon = (url: string) => L.divIcon({
+  const createStoreIcon = useCallback((url: string) => L.divIcon({
     className: 'custom-pin',
     html: `<div class="group relative flex items-center justify-center">
             <div class="w-12 h-12 rounded-full border-4 border-white shadow-xl overflow-hidden bg-white transition-all group-hover:scale-110 group-hover:border-[#B89B6D]">
               <img src="${url || '/images/iconNyamnow.png'}" class="w-full h-full object-cover" />
             </div>
-        
           </div>`,
     iconSize: [48, 48],
     iconAnchor: [24, 48]
-  })
+  }), [])
 
   return (
     <div className="h-full w-full relative bg-[#FDFCF8]">
       <MapContainer 
-        key={`${mapCenter[0]}-${mapCenter[1]}`}
         center={mapCenter} 
         zoom={15} 
         className="h-full w-full"
         zoomControl={false}
         scrollWheelZoom={true}
       >
-        <TileLayer 
-          url="https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png"
+      <TileLayer 
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
-        
         <ChangeView center={mapCenter} />
         <MapMover coords={targetCoords} />
 
@@ -135,6 +132,7 @@ export default function MapExplore({
               </button>
 
               <div className="w-full md:w-40 h-40 rounded-3xl overflow-hidden bg-gray-100 flex-shrink-0 shadow-inner relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={selectedStore.profile_image_url || '/images/iconNyamnow.png'} className="w-full h-full object-cover" alt={selectedStore.name}/>
               </div>
 
@@ -144,8 +142,12 @@ export default function MapExplore({
                     {selectedStore.name}
                   </h2>
                   <div className="flex items-center gap-1 mb-3">
-                    {[...Array(5)].map((_, i) => <Star key={i} size={18} className="text-gray-200 fill-gray-200" />)}
-                    <span className="ml-2 bg-gray-100 text-gray-400 text-[10px] font-black px-2 py-0.5 rounded-full border border-gray-200">0.0</span>
+                    {[1,2,3,4,5].map((s) => (
+                      <Star key={s} size={16} className={s <= Math.round(selectedStore.rating_avg || 0) ? "fill-yellow-400 text-yellow-400" : "fill-gray-200 text-gray-200"} />
+                    ))}
+                    <span className="ml-2 bg-gray-100 text-gray-600 text-[10px] font-black px-2 py-0.5 rounded-full border border-gray-200">
+                      {Number(selectedStore.rating_avg || 0).toFixed(1)}
+                    </span>
                   </div>
                   <p className="text-xs font-bold text-gray-400 line-clamp-2 leading-relaxed italic mb-4">
                     {selectedStore.description || 'UMKM ini menyediakan menu terbaik untukmu.'}
@@ -159,6 +161,7 @@ export default function MapExplore({
                     <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
                       {selectedStore.products.slice(0, 3).map((product) => (
                         <div key={product.id} className="flex items-center gap-3 bg-gray-50 border border-gray-100 p-2 rounded-2xl min-w-[160px] max-w-[180px]">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={product.image_url || '/images/iconNyamnow.png'} alt={product.name} className="w-10 h-10 rounded-xl object-cover bg-white shadow-sm flex-shrink-0" />
                           <div className="flex flex-col justify-center overflow-hidden">
                             <span className="text-[11px] font-black text-gray-800 truncate">{product.name}</span>
