@@ -38,7 +38,6 @@ interface StorePromo {
   }
 }
 
-// ✅ 2. Ubah nama fungsi ini jadi CheckoutContent (hilangkan export default)
 function CheckoutContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -125,7 +124,7 @@ function CheckoutContent() {
       let message = "Terjadi kesalahan"
       if (error instanceof Error) message = error.message
       alert("Gagal buat pesanan: " + message)
-      setIsLoading(false) // Matiin loading kalau error
+      setIsLoading(false) 
     } 
   }
 
@@ -156,7 +155,6 @@ function CheckoutContent() {
             setSellerType(storeData.type?.toLowerCase() || '')
           }
 
-          // Fetch promo aktif toko ini
           const now = new Date().toISOString()
           const { data: promosData } = await supabase
             .from('promos')
@@ -169,12 +167,10 @@ function CheckoutContent() {
           const promos = (promosData as unknown as StorePromo[]) || []
           setAvailablePromos(promos)
 
-          // Auto-apply promo dari URL params (dari halaman campaign)
           const promoIdFromUrl = searchParams.get('promo_id')
           if (promoIdFromUrl && promos.length > 0) {
             const autoPromo = promos.find(p => p.id === promoIdFromUrl)
             if (autoPromo) {
-              // Cek eligibility lagi setelah cart di-load
               const cartRaw = localStorage.getItem('checkout_cart')
               const currentCart: CartItem[] = cartRaw ? JSON.parse(cartRaw) : []
               const cartItem = currentCart.find(c => c.id === autoPromo.product_id)
@@ -203,14 +199,11 @@ function CheckoutContent() {
     initCheckout()
   }, [])
 
-  // Biar keranjang di LocalStorage ikut ke-update kalau di-tambah/kurang
   useEffect(() => {
     if (cart.length > 0) {
       localStorage.setItem('checkout_cart', JSON.stringify(cart))
     }
   }, [cart])
-
-  
 
   // --- LOGIKA RESERVASI STRICT BERKEMBANG ---
   const isBerkembang = sellerType === 'berkembang'
@@ -246,7 +239,6 @@ function CheckoutContent() {
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0)
   const grandTotal = Math.max(0, subtotal - promoDiscount)
 
-  // Helper cek eligibility promo
   const checkEligibility = useCallback((promo: StorePromo) => {
     const cartItem = cart.find(c => c.id === promo.product_id)
     if (!cartItem) return { eligible: false, reason: `Tambahkan ${promo.products?.name} ke keranjang`, discountAmount: 0 }
@@ -263,33 +255,29 @@ function CheckoutContent() {
       const { eligible, discountAmount } = checkEligibility(appliedPromo)
       
       if (!eligible) {
-        // Kalau udah ga memenuhi syarat (misal dari beli 2 jadi beli 1), cabut promo
         setAppliedPromo(null)
         setPromoDiscount(0)
       } else {
-        // Kalau masih memenuhi syarat tapi qty berubah, update jumlah diskonnya
         setPromoDiscount(discountAmount)
       }
     }
   }, [cart, appliedPromo, checkEligibility])
   
-
   if (isLoading && !showSuccessModal) return <div className="min-h-screen bg-[#FDFCF8] flex items-center justify-center font-black text-[#B89B6D] animate-pulse">Menyiapkan Pesanan...</div>
 
   return (
     <div className="min-h-screen bg-[#FDFCF8] text-black font-sans antialiased pb-32 text-left">
       
-      {/* --- NAVBAR COMPONENT --- */}
       <NavbarBuyer userName={userName} handleLogout={handleLogout} />
 
-      <div className="max-w-5xl mx-auto px-6 mt-10 relative z-0">
-        <h1 className="text-2xl font-black text-gray-900 mb-6">Konfirmasi Pembayaran</h1>
+      {/* ✅ RESPONSIF: px-4 buat mobile, px-6 buat md */}
+      <div className="max-w-5xl mx-auto px-4 md:px-6 mt-6 md:mt-10 relative z-0">
+        <h1 className="text-xl md:text-2xl font-black text-gray-900 mb-4 md:mb-6">Konfirmasi Pembayaran</h1>
 
-        {/* MAIN CARD: RINGKASAN PESANAN */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-6">
           
-          {/* HEADER TABEL */}
-          <div className="grid grid-cols-12 gap-4 px-8 py-5 border-b border-gray-100 bg-[#FDFCF8]">
+          {/* ✅ RESPONSIF: Header tabel disembunyikan di HP, dimunculin di laptop */}
+          <div className="hidden md:grid grid-cols-12 gap-4 px-8 py-5 border-b border-gray-100 bg-[#FDFCF8]">
             <div className="col-span-6 text-lg font-black text-[#a08055]">Ringkasan Pesanan</div>
             <div className="col-span-2 text-xs font-black text-gray-500 uppercase flex items-center justify-center">Harga Satuan</div>
             <div className="col-span-2 text-xs font-black text-gray-500 uppercase flex items-center justify-center">Kuantitas</div>
@@ -297,69 +285,76 @@ function CheckoutContent() {
             <div className="col-span-1 text-xs font-black text-gray-500 uppercase flex items-center justify-center">Ubah</div>
           </div>
 
-          {/* STORE NAME */}
-          <div className="px-8 py-4 bg-white flex items-center gap-2 border-b border-gray-100">
+          <div className="px-5 md:px-8 py-4 bg-white flex items-center gap-2 border-b border-gray-100">
             <Store size={18} className="text-[#a08055]" />
             <h2 className="text-sm font-black text-gray-900">{storeName || 'Toko NyamNow'}</h2>
           </div>
 
           {/* CART ITEMS LIST */}
-          <div className="px-8 flex flex-col">
+          <div className="px-5 md:px-8 flex flex-col">
             {cart.length === 0 ? (
               <div className="py-10 text-center text-sm font-bold text-gray-400 italic">Keranjang kamu masih kosong.</div>
             ) : (
               cart.map((item, idx) => (
-                <div key={`${item.id}-${item.variant || 'no-variant'}`} className={`grid grid-cols-12 gap-4 py-6 items-center ${idx !== cart.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                // ✅ RESPONSIF: flex-col di HP, grid-cols-12 di laptop
+                <div key={`${item.id}-${item.variant || 'no-variant'}`} className={`flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 py-5 md:py-6 md:items-center ${idx !== cart.length - 1 ? 'border-b border-gray-100' : ''}`}>
                   
                   {/* Produk Info */}
-                  <div className="col-span-6 flex gap-4 items-center">
+                  <div className="md:col-span-6 flex gap-3 md:gap-4 items-start md:items-center w-full">
                     <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
                       <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
                     </div>
-                    <div>
-                      <h3 className="text-sm font-black text-gray-900 mb-1">{item.name}</h3>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-black text-gray-900 mb-1 leading-tight">{item.name}</h3>
                       {item.variant && (
-                        <div className="inline-flex items-center gap-1 border border-orange-200 text-orange-600 bg-orange-50 px-2 py-0.5 rounded text-[10px] font-bold">
+                        <div className="inline-flex items-center gap-1 border border-orange-200 text-orange-600 bg-orange-50 px-2 py-0.5 rounded text-[10px] font-bold mb-1">
                           <Edit3 size={10} /> {item.variant}
                         </div>
                       )}
+                      {/* ✅ RESPONSIF: Munculin harga di bawah nama buat HP aja */}
+                      <div className="md:hidden text-xs font-black text-[#a08055]">
+                        Rp{item.price.toLocaleString('id-ID')}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Harga Satuan */}
-                  <div className="col-span-2 flex items-center justify-center">
+                  {/* Harga Satuan (Laptop Only) */}
+                  <div className="hidden md:flex col-span-2 items-center justify-center">
                     <span className="text-xs font-black text-[#a08055]">Rp{item.price.toLocaleString('id-ID')}</span>
                   </div>
 
-                  {/* Kuantitas (+/-) */}
-                  <div className="col-span-2 flex items-center justify-center">
-                    <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1">
-                      <button onClick={() => updateQty(item.id, item.variant, -1)} className="text-gray-400 hover:text-gray-900"><Minus size={14}/></button>
-                      <span className="text-xs font-black w-4 text-center">{item.quantity}</span>
-                      <button onClick={() => updateQty(item.id, item.variant, 1)} className="text-gray-400 hover:text-gray-900"><Plus size={14}/></button>
+                  {/* Wrapper Kuantitas, Total, & Hapus buat HP */}
+                  <div className="flex items-center justify-between md:contents w-full mt-2 md:mt-0">
+                    
+                    {/* Kuantitas */}
+                    <div className="md:col-span-2 flex items-center justify-center">
+                      <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1">
+                        <button onClick={() => updateQty(item.id, item.variant, -1)} className="text-gray-400 hover:text-gray-900 p-1"><Minus size={14}/></button>
+                        <span className="text-xs font-black w-4 text-center">{item.quantity}</span>
+                        <button onClick={() => updateQty(item.id, item.variant, 1)} className="text-gray-400 hover:text-gray-900 p-1"><Plus size={14}/></button>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Total Harga Item */}
-                  <div className="col-span-1 flex items-center justify-center">
-                    <span className="text-xs font-black text-[#a08055]">Rp{(item.price * item.quantity).toLocaleString('id-ID')}</span>
-                  </div>
+                    {/* Total Harga Item (Laptop Only) */}
+                    <div className="hidden md:flex col-span-1 items-center justify-center">
+                      <span className="text-xs font-black text-[#a08055]">Rp{(item.price * item.quantity).toLocaleString('id-ID')}</span>
+                    </div>
 
-                  {/* Hapus */}
-                  <div className="col-span-1 flex items-center justify-center">
-                    <button onClick={() => removeItem(item.id, item.variant)} className="text-gray-300 hover:text-red-500 transition-colors">
-                      <X size={20} />
-                    </button>
-                  </div>
+                    {/* Hapus */}
+                    <div className="md:col-span-1 flex items-center justify-center">
+                      <button onClick={() => removeItem(item.id, item.variant)} className="text-gray-300 hover:text-red-500 transition-colors p-2 md:p-0">
+                        <X size={20} />
+                      </button>
+                    </div>
 
+                  </div>
                 </div>
               ))
             )}
           </div>
 
-          {/* NOTES & VOUCHER SECTION */}
           {cart.length > 0 && (
-            <div className="px-8 pb-8 pt-2">
+            <div className="px-5 md:px-8 pb-6 md:pb-8 pt-2">
               <div className="border border-gray-200 rounded-xl overflow-hidden mb-4 focus-within:border-[#a08055] transition-colors shadow-sm">
                 <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center gap-2">
                   <Edit3 size={14} className="text-[#a08055]" />
@@ -371,7 +366,6 @@ function CheckoutContent() {
                 />
               </div>
 
-              {/* PROMO / VOUCHER SECTION */}
               {availablePromos.length > 0 && (
                 <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                   <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center gap-2">
@@ -426,13 +420,12 @@ function CheckoutContent() {
           )}
         </div>
 
-        {/* FULFILLMENT TABS & SUMMARY */}
         {cart.length > 0 && (
           <>
-            <div className="flex">
+            <div className="flex w-full">
               <button 
                 onClick={() => setActiveTab('ambil')}
-                className={`px-8 py-3 text-sm font-black transition-all ${
+                className={`flex-1 md:flex-none px-4 md:px-8 py-3 text-xs md:text-sm font-black transition-all ${
                   activeTab === 'ambil' ? 'bg-[#a08055] text-white rounded-t-xl' : 'bg-gray-100 text-gray-500 rounded-t-xl border border-b-0 border-gray-200 hover:bg-gray-200'
                 }`}
               >
@@ -442,7 +435,7 @@ function CheckoutContent() {
               {isBerkembang && (
                 <button 
                   onClick={() => setActiveTab('reservasi')}
-                  className={`px-8 py-3 text-sm font-black transition-all shadow-[-5px_0_10px_-5px_rgba(0,0,0,0.1)] z-10 ${
+                  className={`flex-1 md:flex-none px-4 md:px-8 py-3 text-xs md:text-sm font-black transition-all shadow-[-5px_0_10px_-5px_rgba(0,0,0,0.1)] z-10 ${
                     activeTab === 'reservasi' ? 'bg-[#a08055] text-white rounded-t-xl' : 'bg-white text-gray-500 rounded-t-xl border border-b-0 border-gray-200 hover:bg-gray-50'
                   }`}
                 >
@@ -451,15 +444,15 @@ function CheckoutContent() {
               )}
             </div>
 
-            <div className="bg-white border border-gray-200 shadow-sm rounded-b-2xl rounded-tr-2xl overflow-hidden">
-              <div className="px-8 py-4 border-b border-gray-100 flex justify-between items-center">
+            <div className="bg-white border border-gray-200 shadow-sm rounded-b-2xl md:rounded-tr-2xl overflow-hidden mb-10">
+              <div className="px-5 md:px-8 py-4 border-b border-gray-100 flex justify-between items-center">
                 <h3 className="font-black text-gray-900">Pembayaran</h3>
                 <div className="flex items-center gap-1 italic font-black text-xl tracking-tighter">
                   QRIS
                 </div>
               </div>
               
-              <div className="px-8 py-6 space-y-3">
+              <div className="px-5 md:px-8 py-5 md:py-6 space-y-3">
                 <div className="flex justify-between text-xs font-bold text-gray-600">
                   <span>Total Pesanan ({totalItems} Menu)</span>
                   <span>Rp {subtotal.toLocaleString('id-ID')}</span>
@@ -470,17 +463,17 @@ function CheckoutContent() {
                     <span>- Rp {promoDiscount.toLocaleString('id-ID')}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm font-black text-gray-900 pt-2 border-t border-dashed border-gray-200">
+                <div className="flex justify-between text-sm md:text-base font-black text-gray-900 pt-3 border-t border-dashed border-gray-200">
                   <span>Total</span>
                   <span>Rp {grandTotal.toLocaleString('id-ID')}</span>
                 </div>
               </div>
 
-              <div className="px-8 pb-8 flex justify-end">
+              <div className="px-5 md:px-8 pb-5 md:pb-8 flex justify-end">
                 <button 
                   onClick={handlePlaceOrder} 
                   disabled={isLoading || cart.length === 0}
-                  className="bg-[#a08055] hover:bg-[#8b6e49] text-white px-8 py-3 rounded-lg text-sm font-black tracking-widest flex items-center gap-2 transition-colors shadow-md active:scale-95 disabled:opacity-50"
+                  className="w-full md:w-auto bg-[#a08055] hover:bg-[#8b6e49] text-white px-8 py-3.5 md:py-3 rounded-xl md:rounded-lg text-sm font-black tracking-widest flex items-center justify-center gap-2 transition-colors shadow-md active:scale-95 disabled:opacity-50"
                 >
                   {isLoading ? 'Memproses...' : 'Kirim Pesanan'} <ChevronRight size={16} />
                 </button>
@@ -490,23 +483,22 @@ function CheckoutContent() {
         )}
       </div>
 
-      {/* --- MODAL SUKSES CHECKOUT --- */}
       <AnimatePresence>
         {showSuccessModal && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
             <motion.div 
               initial={{ opacity: 0, scale: 0.8, y: 20 }} 
               animate={{ opacity: 1, scale: 1, y: 0 }} 
-              className="bg-white p-8 rounded-[2rem] shadow-2xl flex flex-col items-center text-center max-w-sm w-full border border-gray-100 relative overflow-hidden"
+              className="bg-white p-6 md:p-8 rounded-[2rem] shadow-2xl flex flex-col items-center text-center max-w-sm w-full border border-gray-100 relative overflow-hidden"
             >
               <motion.div 
                 initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6 shadow-inner z-10"
+                className="w-20 md:w-24 h-20 md:h-24 bg-green-100 rounded-full flex items-center justify-center mb-5 md:mb-6 shadow-inner z-10"
               >
-                <CheckCircle2 size={48} className="text-green-500" />
+                <CheckCircle2 size={40} className="text-green-500 md:w-12 md:h-12" />
               </motion.div>
-              <h2 className="text-2xl font-black text-gray-900 mb-2 tracking-tighter z-10">Pesanan Terkirim!</h2>
-              <p className="text-sm font-bold text-gray-500 mb-6 z-10">Penjual sedang meninjau pesananmu. Mengalihkan halaman...</p>
+              <h2 className="text-xl md:text-2xl font-black text-gray-900 mb-2 tracking-tighter z-10">Pesanan Terkirim!</h2>
+              <p className="text-xs md:text-sm font-bold text-gray-500 mb-6 z-10">Penjual sedang meninjau pesananmu. Mengalihkan halaman...</p>
               
               <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden z-10">
                 <motion.div 
@@ -523,11 +515,10 @@ function CheckoutContent() {
   )
 }
 
-// ✅ 3. Bikin fungsi CheckoutPage yang isinya murni buat ngebungkus pakai Suspense
 export default function CheckoutPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#FDFCF8] flex items-center justify-center font-black text-[#B89B6D] animate-pulse">
+      <div className="min-h-screen bg-[#FDFCF8] flex items-center justify-center font-black text-[#B89B6D] animate-pulse text-sm">
         Menyiapkan Halaman Checkout...
       </div>
     }>
