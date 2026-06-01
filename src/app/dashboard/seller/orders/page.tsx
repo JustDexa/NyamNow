@@ -58,7 +58,6 @@ interface SupabaseSellerOrder {
 // ==========================================
 // KOMPONEN KARTU PESANAN PENJUAL
 // ==========================================
-// ✅ FIX 1: Tambahin newDeadline di props onStatusChange biar timer bayar ke-update
 function SellerOrderCard({ order, onStatusChange }: { order: SellerOrder, onStatusChange: (id: string, newStatus: OrderStatus, newDeadline?: string) => void }) {
   const [timeLeft, setTimeLeft] = useState<string>('--:--')
   const [isExpired, setIsExpired] = useState(false)
@@ -300,7 +299,6 @@ export default function SellerOrdersHistory() {
 
     fetchOrders()
 
-    // ✅ FIX 3: PASANG CCTV REALTIME DI SINI
     const channel = supabase
       .channel('seller_orders_realtime')
       .on('postgres_changes', { 
@@ -308,8 +306,6 @@ export default function SellerOrdersHistory() {
         schema: 'public', 
         table: 'orders'
       }, (payload) => {
-        // Kalau ada data masuk/berubah, langsung panggil fetchOrders ulang 
-        // biar data relasi (users & order_items) ikut ke-update bersih.
         fetchOrders() 
       })
       .subscribe()

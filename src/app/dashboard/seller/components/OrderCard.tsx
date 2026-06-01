@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { X, Clock, CheckCheck, FileText, ChevronDown, ChevronUp } from 'lucide-react'
 
-// ✅ 1. Definisikan tipe order yang jelas (No more 'any')
 export interface OrderData {
   id: string
   user_id: string
@@ -40,7 +39,6 @@ export default function OrderCard({ order, status }: OrderCardProps) {
   const [isHidden, setIsHidden] = useState(false) 
   const [isExpanded, setIsExpanded] = useState(false)
 
-  // ✅ 4. Bungkus pake useCallback biar linter useEffect nggak ngamuk
   const autoCancelOrder = useCallback(async () => {
     await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id)
     setIsHidden(true)
@@ -62,7 +60,6 @@ export default function OrderCard({ order, status }: OrderCardProps) {
           .select('id, quantity, price, products(name)')
           .eq('order_id', order.id)
         
-        // ✅ 2. Casting yang aman (No more 'any')
         if (itemsData) setItems(itemsData as unknown as OrderItem[])
 
       } catch (error) {

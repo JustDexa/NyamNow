@@ -19,7 +19,6 @@ interface Conversation {
   stores: { name: string; profile_image_url: string } 
 }
 
-// ✅ 1. Komponen isi Chat kita pisah ke sini
 function ChatContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -146,7 +145,7 @@ function ChatContent() {
             ) : conversations.length === 0 ? (
               <div className="p-12 text-center">
                 <MessageSquare size={40} className="mx-auto text-gray-100 mb-2" />
-                <p className="text-xs font-bold text-gray-400">Belum pernah chat toko bejir.</p>
+                <p className="text-xs font-bold text-gray-400">Belum pernah chat toko.</p>
               </div>
             ) : (
               conversations.map((conv) => (

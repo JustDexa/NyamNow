@@ -61,7 +61,6 @@ export default function ChatRoom() {
           table: 'messages',
           filter: `conversation_id=eq.${conversationId}` 
         }, (payload) => {
-          // ✅ FIX: Cegah pesan dobel kalau Optimistic UI udah jalan duluan
           setMessages(prev => {
             if (prev.some(m => m.id === payload.new.id)) return prev
             return [...prev, payload.new as Message]
@@ -94,9 +93,8 @@ export default function ChatRoom() {
     }).select().single()
 
     if (error) {
-      alert("Gagal kirim pesan bejir.")
+      alert("Gagal kirim pesan.")
     } else if (data) {
-      // ✅ OPTIMISTIC UI: Langsung taro di layar tanpa nunggu server
       setMessages(prev => {
         if (prev.some(m => m.id === data.id)) return prev
         return [...prev, data]

@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import OrderCard from './components/OrderCard'
 
-// ✅ TYPE SINKRON DENGAN DATABASE
 type OrderStatus = 'waiting_confirmation' | 'waiting_payment' | 'processing' | 'completed' | 'cancelled'
 
 export type OrderType = {

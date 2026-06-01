@@ -12,7 +12,6 @@ export default function Navbar() {
   const [profileImg, setProfileImg] = useState('/images/iconNyamnow.png')
   const [showDropdown, setShowDropdown] = useState(false)
   
-  // ✅ STATE DINAMIS BUAT NOTIF & CHAT (Siap buat fitur Realtime)
   const [unreadChatCount, setUnreadChatCount] = useState(0)
   const [unreadNotifCount, setUnreadNotifCount] = useState(0)
 
@@ -46,12 +45,11 @@ export default function Navbar() {
       router.push('/login')
       router.refresh()
     } catch (error) {
-      alert('Gagal Logout, coba lagi bejir!')
+      alert('Gagal Logout, coba lagi!')
     }
   }
 
   return (
-    // ✅ TINGGI DIPANGKAS JADI h-[72px] BIAR SLEEK
     <nav className="h-[72px] w-full bg-[#CBAE81] flex items-center justify-between px-6 lg:px-8 shadow-sm z-50 shrink-0 relative">
       
       {/* LOGO KIRI - UKURAN DIKECILIN BIAR PROPORSIONAL */}

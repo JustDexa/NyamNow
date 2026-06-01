@@ -25,7 +25,6 @@ function centerAspectCrop(mediaWidth: number, mediaHeight: number, aspect: numbe
   )
 }
 
-// ✅ 1. NAMA FUNGSI DIUBAH JADI COMPONENT BIASA (Tanpa export default)
 function SellerFormContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -359,7 +358,6 @@ function SellerFormContent() {
   )
 }
 
-// ✅ 2. EXPORT DEFAULT UTAMA DIBUNGKUS SUSPENSE DI SINI
 export default function SellerFormPage() {
   return (
     <Suspense fallback={

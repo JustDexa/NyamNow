@@ -46,7 +46,6 @@ export default function SellerChatPage() {
         `)
         .eq('store_id', store.id)
 
-      // ✅ FIX: Gak pake 'any' lagi biar ESLint seneng
       if (convs) setConversations(convs as unknown as Conversation[])
       setIsLoading(false)
     }
@@ -127,7 +126,7 @@ export default function SellerChatPage() {
             ) : conversations.length === 0 ? (
               <div className="p-8 text-center">
                 <MessageSquare size={40} className="mx-auto text-gray-100 mb-2" />
-                <p className="text-xs font-bold text-gray-400">Belum ada chat masuk bejir.</p>
+                <p className="text-xs font-bold text-gray-400">Belum ada chat masuk.</p>
               </div>
             ) : (
               conversations.map((conv) => (

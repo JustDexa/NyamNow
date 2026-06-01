@@ -24,7 +24,6 @@ interface StoreData {
   products?: { id: string; name: string; price: number; image_url: string }[];
 }
 
-// ✅ INI FUNGSI BIAR PETA BISA TERBANG KE LOKASI SEARCH
 function MapMover({ coords }: { coords: [number, number] | null | undefined }) {
   const map = useMap()
   useEffect(() => {

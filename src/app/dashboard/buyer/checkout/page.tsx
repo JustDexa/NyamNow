@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { 
   Search, MapPin, Heart, ShoppingCart, 
-  LogOut, Settings, ChevronRight, Store, X, Minus, Plus, Edit3, Ticket, MessageCircle, CheckCircle2
+  LogOut, Settings, ChevronRight, Store, X, Minus, Plus, Edit3, Ticket, MessageCircle, CheckCircle2,
+  Tag, Zap, Lock
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
@@ -14,14 +16,31 @@ import NavbarBuyer from '@/components/NavbarBuyer'
 interface CartItem {
   id: string
   name: string
-  variant?: string // Buat nampung varian kalau ada
+  variant?: string
   price: number
   quantity: number
   image_url: string
 }
 
+interface StorePromo {
+  id: string
+  title: string
+  description: string
+  type: 'flash_sale' | 'promo'
+  buy_qty: number
+  get_qty: number
+  discount_price: number
+  product_id: string
+  products: {
+    id: string
+    name: string
+    price: number
+  }
+}
+
 export default function CheckoutPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   
   // NAVBAR STATES
   const [userName, setUserName] = useState<string | null>(null)
@@ -32,17 +51,19 @@ export default function CheckoutPage() {
   const [sellerType, setSellerType] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   
-  const [showVoucherModal, setShowVoucherModal] = useState(false)
-  const [showSuccessModal, setShowSuccessModal] = useState(false) // ✅ State baru buat modal sukses
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
   
   const [note, setNote] = useState('')
   const [activeTab, setActiveTab] = useState<'ambil' | 'reservasi'>('ambil')
-  
-  const discount = 0 // Nanti dikonek ke state voucher
+
+  // PROMO STATES
+  const [availablePromos, setAvailablePromos] = useState<StorePromo[]>([])
+  const [appliedPromo, setAppliedPromo]       = useState<StorePromo | null>(null)
+  const [promoDiscount, setPromoDiscount]     = useState(0)
 
   // pesan bayar
   const handlePlaceOrder = async () => {
-    if (cart.length === 0) return alert("Keranjang kosong bejir!")
+    if (cart.length === 0) return alert("Keranjang kosong!")
     
     setIsLoading(true)
     try {
@@ -63,7 +84,7 @@ export default function CheckoutPage() {
           store_id: savedStoreId,
           status: 'waiting_confirmation',
           total_price: subtotal,
-          discount: discount,
+          discount: promoDiscount,
           grand_total: grandTotal,
           note: note,
           order_type: activeTab,
@@ -93,7 +114,6 @@ export default function CheckoutPage() {
       localStorage.removeItem('checkout_cart')
       localStorage.removeItem('checkout_store_id')
 
-      // 5. ✅ Munculin Modal Sukses, tunggu 2 detik, baru pindah halaman
       setShowSuccessModal(true)
       setTimeout(() => {
         router.push('/dashboard/buyer/orders')
@@ -133,6 +153,43 @@ export default function CheckoutPage() {
           if (storeData) {
             setStoreName(storeData.name)
             setSellerType(storeData.type?.toLowerCase() || '')
+          }
+
+          // Fetch promo aktif toko ini
+          const now = new Date().toISOString()
+          const { data: promosData } = await supabase
+            .from('promos')
+            .select('id, title, description, type, buy_qty, get_qty, discount_price, product_id, products!promos_product_id_fkey(id, name, price)')
+            .eq('store_id', savedStoreId)
+            .eq('is_active', true)
+            .lte('start_at', now)
+            .gte('end_at', now)
+          
+          const promos = (promosData as unknown as StorePromo[]) || []
+          setAvailablePromos(promos)
+
+          // Auto-apply promo dari URL params (dari halaman campaign)
+          const promoIdFromUrl = searchParams.get('promo_id')
+          if (promoIdFromUrl && promos.length > 0) {
+            const autoPromo = promos.find(p => p.id === promoIdFromUrl)
+            if (autoPromo) {
+              // Cek eligibility lagi setelah cart di-load
+              const cartRaw = localStorage.getItem('checkout_cart')
+              const currentCart: CartItem[] = cartRaw ? JSON.parse(cartRaw) : []
+              const cartItem = currentCart.find(c => c.id === autoPromo.product_id)
+              if (cartItem) {
+                const meetsQty = autoPromo.type === 'promo'
+                  ? cartItem.quantity >= autoPromo.buy_qty
+                  : true
+                if (meetsQty) {
+                  const discount = autoPromo.type === 'promo'
+                    ? cartItem.price * autoPromo.get_qty
+                    : (cartItem.price - autoPromo.discount_price) * cartItem.quantity
+                  setAppliedPromo(autoPromo)
+                  setPromoDiscount(discount)
+                }
+              }
+            }
           }
         }
       } catch (error) {
@@ -184,7 +241,19 @@ export default function CheckoutPage() {
 
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0)
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0)
-  const grandTotal = subtotal - discount
+  const grandTotal = Math.max(0, subtotal - promoDiscount)
+
+  // Helper cek eligibility promo
+  const checkEligibility = useCallback((promo: StorePromo) => {
+    const cartItem = cart.find(c => c.id === promo.product_id)
+    if (!cartItem) return { eligible: false, reason: `Tambahkan ${promo.products?.name} ke keranjang`, discountAmount: 0 }
+    if (promo.type === 'promo') {
+      if (cartItem.quantity < promo.buy_qty) return { eligible: false, reason: `Beli min. ${promo.buy_qty} item (kamu: ${cartItem.quantity})`, discountAmount: 0 }
+      return { eligible: true, reason: `${promo.get_qty} item gratis!`, discountAmount: cartItem.price * promo.get_qty }
+    } else {
+      return { eligible: true, reason: `Hemat Rp${(cartItem.price - promo.discount_price).toLocaleString('id-ID')}/item`, discountAmount: (cartItem.price - promo.discount_price) * cartItem.quantity }
+    }
+  }, [cart])
 
   if (isLoading && !showSuccessModal) return <div className="min-h-screen bg-[#FDFCF8] flex items-center justify-center font-black text-[#B89B6D] animate-pulse">Menyiapkan Pesanan...</div>
 
@@ -283,15 +352,57 @@ export default function CheckoutPage() {
                 />
               </div>
 
-              <button onClick={() => setShowVoucherModal(true)} className="w-full flex items-center justify-between border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition-colors shadow-sm">
-                <div className="flex items-center gap-2">
-                  <Ticket size={18} className="text-gray-400" />
-                  <span className="text-xs font-black text-gray-600">Voucher</span>
+              {/* PROMO / VOUCHER SECTION */}
+              {availablePromos.length > 0 && (
+                <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                  <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center gap-2">
+                    <Tag size={14} className="text-[#a08055]" />
+                    <span className="text-xs font-black text-gray-800">Promo Toko</span>
+                    <span className="text-[9px] font-black text-[#a08055] bg-[#FAF4EB] px-1.5 py-0.5 rounded-full ml-auto">{availablePromos.length} tersedia</span>
+                  </div>
+                  <div className="divide-y divide-gray-50">
+                    {availablePromos.map(promo => {
+                      const { eligible, reason, discountAmount } = checkEligibility(promo)
+                      const isApplied = appliedPromo?.id === promo.id
+                      return (
+                        <div
+                          key={promo.id}
+                          onClick={() => {
+                            if (!eligible) return
+                            if (isApplied) { setAppliedPromo(null); setPromoDiscount(0) }
+                            else { setAppliedPromo(promo); setPromoDiscount(discountAmount) }
+                          }}
+                          className={`flex items-center gap-3 px-4 py-3.5 transition-colors ${
+                            isApplied ? 'bg-[#FAF4EB]' : eligible ? 'hover:bg-gray-50 cursor-pointer' : 'opacity-50 cursor-not-allowed'
+                          }`}
+                        >
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${promo.type === 'flash_sale' ? 'bg-orange-100' : 'bg-[#FAF4EB]'}`}>
+                            {promo.type === 'flash_sale'
+                              ? <Zap size={14} className="text-orange-500 fill-orange-500" />
+                              : <Tag size={14} className="text-[#B89B6D]" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-black text-gray-900 truncate">{promo.title || promo.products?.name}</p>
+                            <p className={`text-[10px] font-bold ${eligible ? 'text-green-600' : 'text-gray-400'}`}>
+                              {promo.type === 'promo' ? `Beli ${promo.buy_qty} Gratis ${promo.get_qty}` : `Harga spesial Rp${(promo.discount_price||0).toLocaleString('id-ID')}`}
+                            </p>
+                            <p className={`text-[9px] ${eligible ? (isApplied ? 'text-[#a08055] font-black' : 'text-gray-400') : 'text-gray-400'}`}>
+                              {isApplied ? `✓ Hemat Rp${promoDiscount.toLocaleString('id-ID')}` : reason}
+                            </p>
+                          </div>
+                          <div className="flex-shrink-0">
+                            {isApplied
+                              ? <CheckCircle2 size={16} className="text-[#B89B6D]" />
+                              : eligible
+                              ? <span className="text-[9px] font-black text-[#B89B6D] border border-[#B89B6D] px-2 py-1 rounded-lg">Pakai</span>
+                              : <Lock size={13} className="text-gray-300" />}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
-                <span className="text-sm font-black text-gray-900">
-                  {discount > 0 ? `- Rp ${discount.toLocaleString('id-ID')}` : 'Pilih Voucher'}
-                </span>
-              </button>
+              )}
             </div>
           )}
         </div>
@@ -334,10 +445,10 @@ export default function CheckoutPage() {
                   <span>Total Pesanan ({totalItems} Menu)</span>
                   <span>Rp {subtotal.toLocaleString('id-ID')}</span>
                 </div>
-                {discount > 0 && (
-                  <div className="flex justify-between text-xs font-bold text-gray-600">
-                    <span>Voucher</span>
-                    <span>- Rp {discount.toLocaleString('id-ID')}</span>
+                {promoDiscount > 0 && (
+                  <div className="flex justify-between text-xs font-bold text-green-600">
+                    <span className="flex items-center gap-1"><Tag size={11}/> {appliedPromo?.title || 'Promo'}</span>
+                    <span>- Rp {promoDiscount.toLocaleString('id-ID')}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm font-black text-gray-900 pt-2 border-t border-dashed border-gray-200">
@@ -360,25 +471,7 @@ export default function CheckoutPage() {
         )}
       </div>
 
-      {/* --- MODAL VOUCHER --- */}
-      <AnimatePresence>
-        {showVoucherModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl">
-              <div className="p-6 border-b flex justify-between items-center">
-                <h2 className="text-lg font-black text-gray-900">Pilih Voucher</h2>
-                <button onClick={() => setShowVoucherModal(false)} className="p-2 bg-gray-100 rounded-full hover:bg-red-50 hover:text-red-500 transition-colors"><X size={16} /></button>
-              </div>
-              <div className="p-8 flex flex-col items-center justify-center text-center min-h-[300px]">
-                <Ticket size={48} className="text-gray-300 mb-4" />
-                <p className="text-sm font-bold text-gray-500 italic">Fitur voucher sedang dikembangkan</p>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* ✅ --- MODAL SUKSES CHECKOUT (BARU) --- */}
+      {/* --- MODAL SUKSES CHECKOUT --- */}
       <AnimatePresence>
         {showSuccessModal && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">

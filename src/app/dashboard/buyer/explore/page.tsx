@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import NavbarBuyer from '@/components/NavbarBuyer'
 
-// ✅ INTERFACE UTAMA
 export interface StoreData {
   id: string
   name: string

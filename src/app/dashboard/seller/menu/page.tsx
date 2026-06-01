@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { 
   Plus, Edit2, Clock, Zap, Trash2, ChefHat, 
-  Sparkles, Calendar, RefreshCcw, Timer 
+  Sparkles, Calendar, RefreshCcw, Timer, Megaphone, CheckCircle2 
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import AddMenuModal from './components/AddModal'
@@ -43,9 +43,10 @@ export interface Promo {
   id: string
   store_id: string
   product_id: string
+  campaign_id?: string 
   type: 'flash_sale' | 'promo'
   title: string | null
-  description?: string // Kolom Deskripsi
+  description?: string 
   buy_qty: number
   get_qty: number
   discount_price: number
@@ -60,11 +61,23 @@ export interface Promo {
   }
 }
 
+export interface Campaign {
+  id: string
+  title: string
+  banner_url: string
+  start_at: string
+  end_at: string
+  is_active: boolean
+}
+
 export default function MenuPage() {
   const [activeTab, setActiveTab] = useState('Semua')
   const [menus, setMenus] = useState<Product[]>([])
   const [promos, setPromos] = useState<Promo[]>([])
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]) 
+  
   const [selectedMenu, setSelectedMenu] = useState<Product | null>(null)
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null)
   
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -84,16 +97,26 @@ export default function MenuPage() {
   }, [])
 
   const fetchPromos = useCallback(async () => {
-    if (!storeId) return
-    const { data } = await supabase.from('promos')
-      .select('*, products(name, price, image_url)')
-      .eq('store_id', storeId)
-      .order('created_at', { ascending: false })
-    
-    setPromos((data as unknown as Promo[]) || [])
-  }, [storeId])
+      if (!storeId) return
+      const { data, error } = await supabase.from('promos')
+        .select('*, products!promos_product_id_fkey(name, price, image_url)')
+        .eq('store_id', storeId)
+        .order('created_at', { ascending: false })
+      
+      // Biar kalau ada error ghaib lagi, kelihatan di console inspect element
+      if (error) {
+        console.error("Error Fetch Promos Supabase:", error.message)
+      }
+      
+      setPromos((data as unknown as Promo[]) || [])
+    }, [storeId])
 
-  useEffect(() => { fetchMenus() }, [fetchMenus])
+  const fetchCampaigns = useCallback(async () => {
+    const { data } = await supabase.from('admin_campaigns').select('*').eq('is_active', true).order('created_at', { ascending: false })
+    setCampaigns((data as Campaign[]) || [])
+  }, [])
+
+  useEffect(() => { fetchMenus(); fetchCampaigns(); }, [fetchMenus, fetchCampaigns])
   useEffect(() => { if (storeId) fetchPromos() }, [storeId, fetchPromos])
 
   const handleDeletePromo = async (id: string) => {
@@ -106,6 +129,20 @@ export default function MenuPage() {
   const handleSavePromo = async (data: PromoData) => {
     try {
       if (!storeId) return
+
+      let finalStart = data.start_at;
+      let finalEnd = data.end_at;
+      let finalType = data.type;
+
+      if (selectedCampaignId) {
+        const targetCampaign = campaigns.find(c => c.id === selectedCampaignId);
+        if (targetCampaign) {
+          finalStart = targetCampaign.start_at;
+          finalEnd = targetCampaign.end_at;
+          finalType = 'promo'; 
+        }
+      }
+
       let finalImageUrl = ''
       
       if (data.promo_image_url?.startsWith('blob:')) {
@@ -119,25 +156,46 @@ export default function MenuPage() {
       const { error } = await supabase.from('promos').insert([{
         store_id: storeId, 
         product_id: data.product_id, 
-        type: data.type,
+        campaign_id: selectedCampaignId || null, 
+        type: finalType,
         title: data.title || null, 
         description: data.description || null,
         buy_qty: data.buy_qty || 0, 
         get_qty: data.get_qty || 0,
         discount_price: data.discount_price || null, 
         promo_image_url: finalImageUrl || null,
-        start_at: data.start_at, 
-        end_at: data.end_at, 
+        start_at: finalStart, 
+        end_at: finalEnd, 
         can_repeat: data.can_repeat
       }])
 
       if (error) throw error
+      
+      //Auto-Switch Tab biar promonya langsung keliatan
+      if (selectedCampaignId) {
+        setActiveTab('Promo Campaign');
+      } else if (finalType === 'flash_sale') {
+        setActiveTab('Flash Sale');
+      } else {
+        setActiveTab('Promo Bundle');
+      }
+
       setIsPromoModalOpen(false)
+      setSelectedCampaignId(null)
       fetchPromos()
-    } catch (e) { 
+      } catch (e: unknown) { 
       console.error(e)
-      alert('Gagal Simpan Promo!') 
+      if (e instanceof Error) {
+        alert(`Gagal Simpan Promo! Error: ${e.message}`) 
+      } else {
+        alert('Gagal Simpan Promo! Terjadi kesalahan yang tidak diketahui.')
+      }
     }
+  }
+
+  const handleClosePromoModal = () => {
+    setIsPromoModalOpen(false)
+    setSelectedCampaignId(null)
   }
 
   return (
@@ -154,27 +212,32 @@ export default function MenuPage() {
           </p>
         </div>
         
-        <button 
-          onClick={() => ['Flash Sale', 'Promo Bundle'].includes(activeTab) ? setIsPromoModalOpen(true) : setIsModalOpen(true)} 
-          className="bg-black text-white px-8 py-5 rounded-[25px] font-black text-[11px] uppercase shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
-        >
-          {['Flash Sale', 'Promo Bundle'].includes(activeTab) ? (
-            <><Zap size={16} className="text-orange-400 fill-orange-400" /> Buat Promo Baru</>
-          ) : (
-            <><Plus size={16} /> Tambah Menu Baru</>
-          )}
-        </button>
+        {activeTab !== 'Promo Campaign' && (
+          <button 
+            onClick={() => ['Flash Sale', 'Promo Bundle'].includes(activeTab) ? setIsPromoModalOpen(true) : setIsModalOpen(true)} 
+            className="bg-black text-white px-8 py-5 rounded-[25px] font-black text-[11px] uppercase shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
+          >
+            {['Flash Sale', 'Promo Bundle'].includes(activeTab) ? (
+              <><Zap size={16} className="text-orange-400 fill-orange-400" /> Buat Promo Baru</>
+            ) : (
+              <><Plus size={16} /> Tambah Menu Baru</>
+            )}
+          </button>
+        )}
       </div>
 
       {/* TABS */}
       <div className="flex gap-8 mb-10 border-b border-slate-100 overflow-x-auto no-scrollbar scroll-smooth">
-        {['Semua', 'Aktif', 'Habis', 'Flash Sale', 'Promo Bundle'].map((tab) => (
+        {['Semua', 'Aktif', 'Habis', 'Flash Sale', 'Promo Bundle', 'Promo Campaign'].map((tab) => (
           <button 
             key={tab} 
             onClick={() => setActiveTab(tab)} 
-            className={`pb-5 text-[11px] font-black uppercase tracking-widest relative whitespace-nowrap transition-colors ${activeTab === tab ? 'text-black' : 'text-slate-300 hover:text-slate-500'}`}
+            className={`pb-5 text-[11px] font-black uppercase tracking-widest relative whitespace-nowrap transition-colors ${activeTab === tab ? 'text-[#b89b6d]' : 'text-slate-300 hover:text-slate-500'}`}
           >
-            {tab}
+            <span className="flex items-center gap-2">
+              {tab === 'Promo Campaign' && <Megaphone size={14} className={activeTab === tab ? 'text-[#b89b6d]' : 'text-slate-300'}/>}
+              {tab}
+            </span>
             {activeTab === tab && (
               <motion.div layoutId="activeTabUnderline" className="absolute bottom-0 left-0 w-full h-1.5 bg-[#b89b6d] rounded-t-full" />
             )}
@@ -184,7 +247,55 @@ export default function MenuPage() {
 
       {/* CONTENT GRID */}
       <AnimatePresence mode="wait">
-        {['Flash Sale', 'Promo Bundle'].includes(activeTab) ? (
+        {activeTab === 'Promo Campaign' ? (
+          <motion.div 
+            key="campaign-grid"
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          >
+            {campaigns.length === 0 ? (
+              <div className="col-span-full py-20 text-center text-slate-300 font-bold uppercase tracking-widest">Belum ada Campaign Aktif dari Admin.</div>
+            ) : campaigns.map(c => {
+               const hasJoined = promos.some(p => p.campaign_id === c.id)
+
+               return (
+                 <div key={c.id} className="bg-white border border-slate-100 rounded-[45px] overflow-hidden shadow-sm hover:shadow-xl transition-all flex flex-col h-full group">
+                   <div className="h-44 w-full bg-slate-100 overflow-hidden relative">
+                     <img src={c.banner_url} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/>
+                     <div className="absolute top-4 left-4 bg-black text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md flex items-center gap-1.5">
+                       <Megaphone size={12} className="text-[#b89b6d]"/> NyamNow Event
+                     </div>
+                   </div>
+                   <div className="p-8 flex flex-col flex-1">
+                     <h3 className="font-[1000] text-xl uppercase italic tracking-tighter text-black leading-tight mb-2">{c.title}</h3>
+                     <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">
+                       <Calendar size={12}/>
+                       <span>{new Date(c.start_at).toLocaleDateString('id-ID')} - {new Date(c.end_at).toLocaleDateString('id-ID')}</span>
+                     </div>
+
+                     <div className="mt-auto">
+                       {hasJoined ? (
+                         <div className="w-full bg-green-50 text-green-600 font-black text-xs uppercase tracking-widest py-4 rounded-2xl flex justify-center items-center gap-2 border border-green-100">
+                           <CheckCircle2 size={16}/> Sudah Bergabung
+                         </div>
+                       ) : (
+                         <button 
+                           onClick={() => {
+                             setSelectedCampaignId(c.id);
+                             setIsPromoModalOpen(true);
+                           }} 
+                           className="w-full bg-[#B89B6D] hover:bg-black text-white font-black text-xs uppercase tracking-widest py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all active:scale-95"
+                         >
+                           Join Event
+                         </button>
+                       )}
+                     </div>
+                   </div>
+                 </div>
+               )
+            })}
+          </motion.div>
+        ) : ['Flash Sale', 'Promo Bundle'].includes(activeTab) ? (
           <motion.div 
             key="promo-grid"
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
@@ -192,20 +303,29 @@ export default function MenuPage() {
           >
             {promos.filter(p => activeTab === 'Flash Sale' ? p.type === 'flash_sale' : p.type === 'promo').map(p => {
               const isExpired = new Date(p.end_at) < new Date();
-              const discountPercent = p.products ? Math.round((1 - (p.discount_price / p.products.price)) * 100) : 0;
+              const discountPercent = p.products && p.products.price > 0 ? Math.round((1 - (p.discount_price / p.products.price)) * 100) : 0;
 
               return (
                 <div key={p.id} className="bg-white border border-slate-100 rounded-[45px] overflow-hidden shadow-sm hover:shadow-xl transition-all group flex flex-col h-full">
-                  {/* IMAGE & OVERLAY */}
                   <div className="h-52 overflow-hidden relative">
                     <img 
                       src={p.type === 'flash_sale' ? p.products?.image_url : (p.promo_image_url || p.products?.image_url)} 
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
                       alt="Promo" 
                     />
+                    
+                    {/* BADGE TIPE PROMO KIRI ATAS */}
                     <div className={`absolute top-5 left-5 px-4 py-2 rounded-full text-[9px] font-black text-white uppercase italic shadow-lg z-10 ${p.type === 'flash_sale' ? 'bg-orange-600' : 'bg-black'}`}>
                       {p.type.replace('_', ' ')}
                     </div>
+
+                    {/* ✅ BADGE PENANDA CAMPAIGN KANAN ATAS (MAKIN MENCOLOK) */}
+                    {p.campaign_id && (
+                      <div className="absolute top-5 right-5 px-3 py-2 rounded-full bg-[#b89b6d] shadow-lg flex items-center gap-1.5 z-10 border-2 border-white/50 backdrop-blur-md" title="Tergabung dalam Campaign NyamNow">
+                        <Megaphone size={12} className="text-white animate-pulse"/>
+                        <span className="text-[9px] font-black text-white uppercase tracking-widest">Event</span>
+                      </div>
+                    )}
 
                     {p.type === 'flash_sale' && (
                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-orange-600/90 to-transparent p-5 pt-12">
@@ -219,15 +339,21 @@ export default function MenuPage() {
                     )}
                   </div>
 
-                  {/* CONTENT */}
                   <div className="p-8 flex flex-col flex-1">
-                    <div className="flex justify-between items-start mb-3 gap-4">
+                    <div className="flex justify-between items-start mb-3 gap-2">
                       <h3 className="font-[1000] uppercase italic tracking-tighter text-xl leading-[0.9] text-black">
                         {p.title || p.products?.name}
                       </h3>
-                      <button onClick={() => handleDeletePromo(p.id)} className="p-2 text-slate-200 hover:text-red-500 transition-colors">
-                        <Trash2 size={18} />
-                      </button>
+                      
+                      {/* ✅ TOMBOL HAPUS & EDIT */}
+                      <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-2xl flex-shrink-0">
+                        <button onClick={() => alert('Fitur Edit Promo segera kita buat!')} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-white rounded-xl transition-all shadow-sm" title="Edit Promo">
+                          <Edit2 size={14} />
+                        </button>
+                        <button onClick={() => handleDeletePromo(p.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-white rounded-xl transition-all shadow-sm" title="Hapus Promo">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
 
                     {p.description && (
@@ -254,7 +380,7 @@ export default function MenuPage() {
                              <p className="text-[8px] font-black text-blue-400 uppercase mt-1">Bundle Deal</p>
                           </div>
                           {p.can_repeat && (
-                            <div className="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-200">
+                            <div className="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-200" title="Bisa Repeat Order">
                               <RefreshCcw size={14} className="animate-spin-slow" />
                             </div>
                           )}
@@ -283,7 +409,6 @@ export default function MenuPage() {
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
             {menus.filter(m => activeTab === 'Aktif' ? m.stock > 0 : activeTab === 'Habis' ? m.stock === 0 : true).map(m => {
-               const totalVariants = m.variants?.reduce((acc, curr) => acc + curr.options.length, 0) || 0;
                const groupCount = m.variants?.length || 0;
 
                return (
@@ -355,7 +480,12 @@ export default function MenuPage() {
       )}
       
       {isPromoModalOpen && (
-        <AddPromoModal menus={menus} onClose={() => setIsPromoModalOpen(false)} onSave={handleSavePromo} />
+        <AddPromoModal 
+          menus={menus} 
+          onClose={handleClosePromoModal} 
+          onSave={handleSavePromo} 
+          isCampaignMode={!!selectedCampaignId} // ✅ INJEKSI KE MODAL
+        />
       )}
     </div>
   )

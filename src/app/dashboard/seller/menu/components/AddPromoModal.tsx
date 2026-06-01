@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client'
 import { useState, useMemo, useRef } from 'react'
-import { X, UploadCloud, AlignLeft, RefreshCcw, Clock, Info } from 'lucide-react'
+import { X, UploadCloud, AlignLeft, RefreshCcw, Clock, Info, Zap } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 export interface Product {
@@ -23,11 +23,14 @@ export interface PromoData {
 }
 
 interface AddPromoModalProps {
-  menus: Product[]; onClose: () => void; onSave: (data: PromoData) => void;
+  menus: Product[]; 
+  onClose: () => void; 
+  onSave: (data: PromoData) => void;
+  isCampaignMode?: boolean; 
 }
 
-export default function AddPromoModal({ menus, onClose, onSave }: AddPromoModalProps) {
-  const [promoType, setPromoType] = useState<'flash_sale' | 'promo'>('promo')
+export default function AddPromoModal({ menus, onClose, onSave, isCampaignMode = false }: AddPromoModalProps) {
+  const [promoType, setPromoType] = useState<'flash_sale' | 'promo'>(isCampaignMode ? 'promo' : 'promo')
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   // State untuk Bundle (Promo)
@@ -53,37 +56,28 @@ export default function AddPromoModal({ menus, onClose, onSave }: AddPromoModalP
     return menus.find(m => m.id === id)
   }, [promoType, selectedBuyMenu, fsMenuId, menus])
 
-const toggleFsSession = (session: number) => {
+  const toggleFsSession = (session: number) => {
     setFsSessions(prev => {
-      // 1. Kalau user batalin (uncheck) sesi
       if (prev.includes(session)) {
         const removed = prev.filter(s => s !== session)
-        
-        // Cek apakah setelah dihapus, sesinya jadi loncat/bolong
         let isBolong = false;
         for (let i = 0; i < removed.length - 1; i++) {
            if (removed[i+1] - removed[i] > 1) isBolong = true;
         }
-        
         if (isBolong) {
            alert('Sesi tidak bisa kosong ditengah!');
-           return []; // Auto reset biar aman
+           return []; 
         }
         return removed;
-      } 
-      // 2. Kalau user nambah sesi
-      else {
+      } else {
         const newArr = [...prev, session].sort((a, b) => a - b)
-        
-        // Cek apakah milihnya loncat (misal 19 langsung 21)
         let isBolong = false;
         for (let i = 0; i < newArr.length - 1; i++) {
            if (newArr[i+1] - newArr[i] > 1) isBolong = true;
         }
-        
         if (isBolong) {
            alert('Pemilihan sesi harus berurutan (contoh: 19 & 20). Bila mau loncat ke 21, silahkan buat 2 promo terpisah ya!');
-           return prev; // Batalin pilihannya
+           return prev; 
         }
         return newArr;
       }
@@ -92,13 +86,16 @@ const toggleFsSession = (session: number) => {
 
   const handleSave = () => {
     if (promoType === 'promo') {
-      if (!startAt || !endAt) return alert('Jadwal Bundle belum diisi!')
       if (!selectedBuyMenu || !promoTitle) return alert('Lengkapi data Promo Bundle!')
       
-      // 🔥 FIX WAKTU BUNDLE: Tambahin detik (:00) dan zona waktu WIB (+07:00)
-      // Input datetime-local ngehasilin "YYYY-MM-DDThh:mm", kita ubah jadi ISO 8601 full
-      const startWIB = `${startAt}:00+07:00`
-      const endWIB = `${endAt}:00+07:00`
+      let startWIB = ''
+      let endWIB = ''
+
+      if (!isCampaignMode) {
+        if (!startAt || !endAt) return alert('Jadwal Bundle belum diisi!')
+        startWIB = `${startAt}:00+07:00`
+        endWIB = `${endAt}:00+07:00`
+      }
       
       onSave({ 
         type: 'promo', 
@@ -117,11 +114,9 @@ const toggleFsSession = (session: number) => {
       if (!fsMenuId || !fsDiscountPrice) return alert('Lengkapi data Flash Sale!')
       if (!fsDate || fsSessions.length === 0) return alert('Pilih Tanggal dan minimal 1 Sesi Waktu untuk Flash Sale!')
 
-      // Kalkulasi start_at dan end_at berdasarkan sesi yang dipilih
       const earliestSession = fsSessions[0]
       const latestSession = fsSessions[fsSessions.length - 1]
 
-      // 🔥 FIX WAKTU FLASH SALE: Langsung suntik +07:00 di belakangnya
       const formattedStart = `${fsDate}T${earliestSession.toString().padStart(2, '0')}:00:00+07:00`
       const formattedEnd = `${fsDate}T${(latestSession + 1).toString().padStart(2, '0')}:00:00+07:00`
 
@@ -149,8 +144,23 @@ const toggleFsSession = (session: number) => {
         <div className="flex-1 overflow-y-auto no-scrollbar p-8 pt-4 space-y-6">
           {/* TOGGLE TYPE */}
           <div className="flex bg-slate-100 p-1.5 rounded-[25px] gap-2">
-            <button onClick={() => setPromoType('promo')} className={`flex-1 py-3 rounded-full text-[10px] font-black uppercase transition-all ${promoType === 'promo' ? 'bg-black text-white shadow-lg' : 'text-slate-400'}`}>BUNDLE (BUY X GET Y)</button>
-            <button onClick={() => setPromoType('flash_sale')} className={`flex-1 py-3 rounded-full text-[10px] font-black uppercase transition-all ${promoType === 'flash_sale' ? 'bg-orange-500 text-white shadow-lg' : 'text-slate-400'}`}>⚡ FLASH SALE</button>
+            <button 
+              onClick={() => setPromoType('promo')} 
+              className={`flex-1 py-3 rounded-full text-[10px] font-black uppercase transition-all ${promoType === 'promo' ? 'bg-black text-white shadow-lg' : 'text-slate-400'}`}
+            >
+              BUNDLE (BUY X GET Y)
+            </button>
+            {/* ✅ TOMBOL FLASH SALE MATI KALAU LAGI JOIN CAMPAIGN */}
+            <button 
+              onClick={() => setPromoType('flash_sale')} 
+              disabled={isCampaignMode}
+              title={isCampaignMode ? "Flash Sale tidak tersedia untuk NyamNow Event Campaign" : ""}
+              className={`flex-1 py-3 rounded-full flex items-center justify-center gap-2 text-[10px] font-black uppercase transition-all ${
+                promoType === 'flash_sale' ? 'bg-orange-500 text-white shadow-lg' : 'text-slate-400 hover:text-orange-500'
+              } ${isCampaignMode ? 'opacity-30 cursor-not-allowed' : ''}`}
+            >
+              <Zap size={14} /> FLASH SALE
+            </button>
           </div>
 
           {/* REALTIME PRICE INFO */}
@@ -228,17 +238,25 @@ const toggleFsSession = (session: number) => {
             </h4>
             
             {promoType === 'promo' ? (
-              // JADWAL UNTUK BUNDLE PROMO
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[8px] font-black text-slate-400 ml-1 uppercase">Mulai</label>
-                  <input type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} className="w-full bg-white p-3 rounded-xl text-[10px] font-black outline-none shadow-sm" />
+              isCampaignMode ? (
+                <div className="bg-blue-50/80 border border-blue-100 p-4 rounded-2xl flex items-start gap-3">
+                  <Info size={16} className="text-blue-500 flex-shrink-0" />
+                  <p className="text-[10px] font-bold text-blue-700 leading-relaxed uppercase">
+                    Jadwal promo ini akan otomatis mengikuti waktu NyamNow Event Campaign. Anda tidak perlu mengaturnya secara manual.
+                  </p>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[8px] font-black text-slate-400 ml-1 uppercase">Berakhir</label>
-                  <input type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} className="w-full bg-white p-3 rounded-xl text-[10px] font-black outline-none shadow-sm" />
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 ml-1 uppercase">Mulai</label>
+                    <input type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} className="w-full bg-white p-3 rounded-xl text-[10px] font-black outline-none shadow-sm" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 ml-1 uppercase">Berakhir</label>
+                    <input type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} className="w-full bg-white p-3 rounded-xl text-[10px] font-black outline-none shadow-sm" />
+                  </div>
                 </div>
-              </div>
+              )
             ) : (
               // JADWAL UNTUK FLASH SALE
               <div className="space-y-4">

@@ -1,13 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import NavbarBuyer from '@/components/NavbarBuyer'
-import { Clock, CheckCircle2, XCircle, Utensils, ShoppingBag, ChevronRight, AlertCircle, PackageCheck, QrCode, ScanLine, Info } from 'lucide-react'
+import { Clock, CheckCircle2, XCircle, Utensils, ShoppingBag, ChevronRight, AlertCircle, PackageCheck, QrCode, Star, Info, MessageSquare, CreditCard } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
-// --- INTERFACES ---
 interface OrderItem {
   id: string
   product_id: string
@@ -26,19 +25,24 @@ interface Order {
   confirmation_expires_at: string
   payment_expires_at: string
   created_at: string
+  is_reviewed: boolean
   stores: { name: string }
   order_items: OrderItem[]
 }
 
-// ==========================================
-// KOMPONEN KARTU PESANAN PEMBELI 
-// ==========================================
-function BuyerOrderCard({ order, onPay }: { order: Order, onPay: (id: string, amount: number) => void }) {
+const TABS = [
+  { id: 'semua', label: 'Semua', statuses: ['waiting_confirmation', 'waiting_payment', 'processing', 'ready_for_pickup', 'completed', 'cancelled'] },
+  { id: 'konfirmasi', label: 'Menunggu Konfirmasi', statuses: ['waiting_confirmation'] },
+  { id: 'bayar', label: 'Menunggu Pembayaran', statuses: ['waiting_payment'] },
+  { id: 'proses', label: 'Diproses', statuses: ['processing', 'ready_for_pickup'] },
+  { id: 'selesai', label: 'Selesai', statuses: ['completed'] },
+  { id: 'batal', label: 'Dibatalkan', statuses: ['cancelled'] }
+]
+
+function BuyerOrderCard({ order, onPay, onReview }: { order: Order, onPay: (id: string, amount: number) => void, onReview: (orderId: string, storeId: string) => void }) {
   const [timeLeft, setTimeLeft] = useState<string>('00:00')
   const [isExpired, setIsExpired] = useState(false)
 
-  // ✅ LOGIKA ESTIMASI WAKTU MASAK
-  // Cari waktu terlama dari semua menu yang dipesan. Default 15 menit kalau kosong/0.
   const maxEstTime = Math.max(0, ...order.order_items.map(item => item.products?.estimated_time || 0))
   const finalEstTime = maxEstTime > 0 ? maxEstTime : 15
 
@@ -57,7 +61,6 @@ function BuyerOrderCard({ order, onPay }: { order: Order, onPay: (id: string, am
     const updateTimer = () => {
       const now = new Date().getTime()
       const diff = targetTime - now
-
       if (diff <= 0) {
         setTimeLeft('00:00')
         setIsExpired(true)
@@ -70,24 +73,17 @@ function BuyerOrderCard({ order, onPay }: { order: Order, onPay: (id: string, am
         return false
       }
     }
-
     const expiredInitial = updateTimer()
     if (expiredInitial) return
-
     const timer = setInterval(() => {
       const expired = updateTimer()
       if (expired) clearInterval(timer)
     }, 1000)
-
     return () => clearInterval(timer)
   }, [order.status, order.confirmation_expires_at, order.payment_expires_at, autoCancelOrder])
 
   return (
-    <motion.div 
-      layout
-      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
-      className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm overflow-hidden relative"
-    >
+    <motion.div layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm overflow-hidden relative text-left">
       <div className="flex justify-between items-center border-b border-gray-100 pb-3 mb-4">
         <div className="flex items-center gap-2">
           <Utensils size={16} className="text-[#B89B6D]" />
@@ -132,7 +128,6 @@ function BuyerOrderCard({ order, onPay }: { order: Order, onPay: (id: string, am
             </div>
           )}
 
-          {/* ✅ UI ESTIMASI WAKTU MASAK MUNCUL DI SINI */}
           {order.status === 'processing' && (
             <div className="text-right bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100">
               <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest">Estimasi Dimasak</p>
@@ -141,12 +136,21 @@ function BuyerOrderCard({ order, onPay }: { order: Order, onPay: (id: string, am
           )}
 
           {order.status === 'waiting_payment' && !isExpired && (
-            <button 
-              onClick={() => onPay(order.id, order.grand_total)}
-              className="bg-[#B89B6D] hover:bg-[#a08055] text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center gap-2"
-            >
+            <button onClick={() => onPay(order.id, order.grand_total)} className="bg-[#B89B6D] hover:bg-[#a08055] text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center gap-2">
               <QrCode size={16} /> Bayar Sekarang
             </button>
+          )}
+
+          {/* ✅ TOMBOL BERI ULASAN */}
+          {order.status === 'completed' && !order.is_reviewed && (
+            <button onClick={() => onReview(order.id, order.store_id)} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center gap-2">
+              <Star size={16} className="fill-white" /> Beri Ulasan
+            </button>
+          )}
+          {order.status === 'completed' && order.is_reviewed && (
+            <div className="bg-gray-100 text-gray-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1 border border-gray-200">
+              <CheckCircle2 size={14} /> Sudah Dinilai
+            </div>
           )}
         </div>
       </div>
@@ -154,28 +158,32 @@ function BuyerOrderCard({ order, onPay }: { order: Order, onPay: (id: string, am
   )
 }
 
-// ==========================================
-// HALAMAN UTAMA RIWAYAT PESANAN PEMBELI
-// ==========================================
-export default function OrdersPage() {
+function OrdersContent() {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState('semua')
+  const searchParams = useSearchParams()
+  const tabQuery = searchParams.get('tab')
+
+  const [activeTab, setActiveTab] = useState(() => {
+    if (tabQuery) {
+      const matchedTab = TABS.find(t => t.statuses.includes(tabQuery))
+      if (matchedTab) return matchedTab.id
+    }
+    return 'semua'
+  })
+
   const [orders, setOrders] = useState<Order[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [userName, setUserName] = useState<string | null>(null)
+  
   const [paymentModal, setPaymentModal] = useState({ isOpen: false, orderId: '', amount: 0 })
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
 
-  const TABS = [
-    { id: 'semua', label: 'Semua', statuses: ['waiting_confirmation', 'waiting_payment', 'processing', 'ready_for_pickup', 'completed', 'cancelled'] },
-    { id: 'konfirmasi', label: 'Menunggu Konfirmasi', statuses: ['waiting_confirmation'] },
-    { id: 'bayar', label: 'Menunggu Pembayaran', statuses: ['waiting_payment'] },
-    { id: 'proses', label: 'Diproses', statuses: ['processing', 'ready_for_pickup'] },
-    { id: 'selesai', label: 'Selesai', statuses: ['completed'] },
-    { id: 'batal', label: 'Dibatalkan', statuses: ['cancelled'] }
-  ]
+  const [reviewModal, setReviewModal] = useState({ isOpen: false, orderId: '', storeId: '' })
+  const [reviewRating, setReviewRating] = useState(5)
+  const [reviewComment, setReviewComment] = useState('')
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false)
 
-useEffect(() => {
+  useEffect(() => {
     let channel: ReturnType<typeof supabase.channel>
 
     const initData = async () => {
@@ -187,47 +195,28 @@ useEffect(() => {
       if (userData) setUserName(userData.first_name)
 
       const fetchOrders = async () => {
-        const { data: orderData, error } = await supabase
+        const { data: orderData } = await supabase
           .from('orders')
           .select(`*, stores (name), order_items ( *, products (name, image_url, estimated_time) )`)
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
-
-        if (!error && orderData) setOrders(orderData as unknown as Order[])
+        if (orderData) setOrders(orderData as unknown as Order[])
       }
 
       await fetchOrders()
       setIsLoading(false)
 
-      // ✅ FIX REALTIME: Pakai metode "Direct State Injection" biar SUPER INSTAN
       channel = supabase
         .channel('buyer_orders_realtime')
-        .on('postgres_changes', { 
-          event: 'UPDATE', // Nangkep kalau Penjual nge-klik ACC / Selesai
-          schema: 'public', 
-          table: 'orders',
-          filter: `user_id=eq.${user.id}`
-        }, (payload) => {
-          // Langsung timpa data di layar pakai data baru dari server tanpa nunggu fetch!
-          setOrders(prevOrders => prevOrders.map(order => 
-            order.id === payload.new.id 
-              ? { ...order, ...payload.new } 
-              : order
-          ))
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `user_id=eq.${user.id}` }, (payload) => {
+          setOrders(prev => prev.map(order => order.id === payload.new.id ? { ...order, ...payload.new } : order))
         })
-        .on('postgres_changes', { 
-          event: 'INSERT', // Cuma fetch ulang kalau ada order yang baru banget dibuat
-          schema: 'public', 
-          table: 'orders',
-          filter: `user_id=eq.${user.id}`
-        }, () => {
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders', filter: `user_id=eq.${user.id}` }, () => {
           fetchOrders()
         })
         .subscribe()
     }
-
     initData()
-
     return () => { if (channel) supabase.removeChannel(channel) }
   }, [router])
 
@@ -236,6 +225,25 @@ useEffect(() => {
     const { error } = await supabase.from('orders').update({ status: 'processing' }).eq('id', paymentModal.orderId)
     if (!error) setPaymentModal({ isOpen: false, orderId: '', amount: 0 })
     setIsProcessingPayment(false)
+  }
+
+  const submitReview = async () => {
+    if (!reviewComment.trim()) return alert("Tulis komentar sedikit dong!")
+    setIsSubmittingReview(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    await supabase.from('reviews').insert({
+      user_id: user?.id,
+      store_id: reviewModal.storeId,
+      order_id: reviewModal.orderId,
+      rating: reviewRating,
+      comment: reviewComment
+    })
+
+    setReviewModal({ isOpen: false, orderId: '', storeId: '' })
+    setReviewRating(5)
+    setReviewComment('')
+    setIsSubmittingReview(false)
   }
 
   const currentTabConfig = TABS.find(t => t.id === activeTab)
@@ -257,10 +265,11 @@ useEffect(() => {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`relative px-4 py-2.5 rounded-xl transition-all text-center flex items-center justify-center gap-2 whitespace-nowrap ${
-                    isActive ? 'text-white' : 'text-gray-400 hover:bg-gray-50'
-                  }`}
+                  onClick={() => {
+                    setActiveTab(tab.id)
+                    router.replace('/dashboard/buyer/orders') 
+                  }}
+                  className={`relative px-4 py-2.5 rounded-xl transition-all text-center flex items-center justify-center gap-2 whitespace-nowrap ${isActive ? 'text-white' : 'text-gray-400 hover:bg-gray-50'}`}
                 >
                   {isActive && <motion.div layoutId="orderTab" className="absolute inset-0 bg-[#B89B6D] rounded-xl z-0" />}
                   <span className="relative z-10 text-[10px] md:text-xs font-black uppercase tracking-widest whitespace-nowrap">{tab.label}</span>
@@ -273,15 +282,9 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* ✅ PERINGATAN TAB SELESAI */}
         <AnimatePresence>
           {activeTab === 'selesai' && (
-            <motion.div 
-              initial={{ opacity: 0, height: 0, marginBottom: 0 }} 
-              animate={{ opacity: 1, height: 'auto', marginBottom: 16 }} 
-              exit={{ opacity: 0, height: 0, marginBottom: 0 }} 
-              className="max-w-4xl mx-auto overflow-hidden text-left"
-            >
+            <motion.div initial={{ opacity: 0, height: 0, marginBottom: 0 }} animate={{ opacity: 1, height: 'auto', marginBottom: 16 }} exit={{ opacity: 0, height: 0, marginBottom: 0 }} className="max-w-4xl mx-auto overflow-hidden text-left">
               <div className="bg-green-50 border border-green-200 p-4 rounded-2xl flex items-start gap-3 shadow-sm">
                 <Info className="text-green-600 flex-shrink-0 mt-0.5" size={20} />
                 <div>
@@ -293,7 +296,6 @@ useEffect(() => {
           )}
         </AnimatePresence>
 
-        {/* ORDER LIST */}
         <div className="max-w-4xl mx-auto space-y-4">
           {isLoading ? (
             <div className="py-20 text-[#B89B6D] font-black animate-pulse">Memuat Pesanan...</div>
@@ -305,34 +307,87 @@ useEffect(() => {
           ) : (
             <AnimatePresence>
               {filteredOrders.map(order => (
-                <BuyerOrderCard 
-                  key={order.id} 
-                  order={order} 
-                  onPay={(id, amount) => setPaymentModal({ isOpen: true, orderId: id, amount })} 
-                />
+                <BuyerOrderCard key={order.id} order={order} onPay={(id, amount) => setPaymentModal({ isOpen: true, orderId: id, amount })} onReview={(orderId, storeId) => setReviewModal({ isOpen: true, orderId, storeId })} />
               ))}
             </AnimatePresence>
           )}
         </div>
       </div>
 
-      {/* MODAL QRIS */}
+      {/* ✅ MODAL SIMULASI PEMBAYARAN */}
       <AnimatePresence>
         {paymentModal.isOpen && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white p-8 rounded-[2rem] shadow-2xl flex flex-col items-center text-center max-w-sm w-full relative">
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="bg-white p-8 rounded-[2rem] shadow-2xl w-full max-w-md relative text-center">
               <button onClick={() => setPaymentModal({ isOpen: false, orderId: '', amount: 0 })} className="absolute top-5 right-5 p-2 bg-gray-100 rounded-full text-gray-400 hover:text-red-500"><XCircle size={20} /></button>
-              <div className="flex items-center gap-2 mb-6 text-xl font-black italic tracking-tighter text-[#1f285c]"><QrCode size={24} className="text-blue-600"/> QRIS NYAMNOW</div>
-              <div className="w-56 h-56 bg-white border-4 border-gray-100 rounded-2xl relative overflow-hidden mb-6 flex items-center justify-center p-2 shadow-inner">
-                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=NYAMNOW-${paymentModal.orderId}`} alt="QRIS" className="w-full h-full opacity-80" />
-                <motion.div initial={{ top: '0%' }} animate={{ top: '100%' }} transition={{ repeat: Infinity, duration: 2, ease: "linear", repeatType: "reverse" }} className="absolute left-0 w-full h-1 bg-green-400 shadow-[0_0_15px_rgba(74,222,128,0.8)] z-10" />
+
+              <div className="w-16 h-16 bg-[#FAF4EB] rounded-full flex items-center justify-center mx-auto mb-4 text-[#B89B6D]">
+                <CreditCard size={32} />
               </div>
-              <p className="text-3xl font-black text-[#B89B6D] mb-6">Rp {paymentModal.amount.toLocaleString('id-ID')}</p>
-              <button onClick={handleConfirmPayment} disabled={isProcessingPayment} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-black uppercase tracking-widest transition-all shadow-md active:scale-95 disabled:opacity-50">{isProcessingPayment ? 'Memverifikasi...' : 'Simulasi Bayar Berhasil'}</button>
+              <h2 className="text-xl font-black text-gray-900 mb-1">Simulasi Pembayaran</h2>
+              <p className="text-xs text-gray-500 font-bold mb-6">Tekan tombol di bawah untuk mensimulasikan pembayaran berhasil.</p>
+
+              <div className="bg-[#FAF4EB] rounded-2xl p-4 mb-6 border border-[#EAE2D3]">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Tagihan</p>
+                <p className="text-3xl font-black text-[#B89B6D]">Rp {paymentModal.amount.toLocaleString('id-ID')}</p>
+              </div>
+
+              <button
+                onClick={handleConfirmPayment}
+                disabled={isProcessingPayment}
+                className="w-full bg-[#B89B6D] hover:bg-[#a08055] text-white py-3.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 disabled:opacity-50"
+              >
+                {isProcessingPayment ? 'Memproses...' : '✅ Konfirmasi Bayar'}
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ✅ MODAL REVIEW */}
+      <AnimatePresence>
+        {reviewModal.isOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="bg-white p-8 rounded-[2rem] shadow-2xl w-full max-w-md relative text-center">
+              <button onClick={() => setReviewModal({ isOpen: false, orderId: '', storeId: '' })} className="absolute top-5 right-5 p-2 bg-gray-100 rounded-full text-gray-400 hover:text-red-500"><XCircle size={20} /></button>
+              
+              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 text-yellow-500"><Star size={32} className="fill-yellow-500" /></div>
+              <h2 className="text-xl font-black text-gray-900 mb-2">Gimana Rasa Makanannya?</h2>
+              <p className="text-xs text-gray-500 font-bold mb-6">Penilaian kamu ngebantu pembeli lain dan bikin penjual makin semangat!</p>
+
+              <div className="flex justify-center gap-2 mb-6">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button key={star} onClick={() => setReviewRating(star)} className="focus:outline-none transform hover:scale-110 transition-transform">
+                    <Star size={36} className={`transition-colors ${star <= reviewRating ? 'fill-yellow-400 text-yellow-400' : 'fill-gray-200 text-gray-200'}`} />
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative mb-6 text-left">
+                <MessageSquare className="absolute top-3 left-3 text-gray-400" size={16} />
+                <textarea 
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Ceritain pengalaman lo makan di sini..."
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:border-[#B89B6D] min-h-[100px] resize-none text-black"
+                />
+              </div>
+
+              <button onClick={submitReview} disabled={isSubmittingReview || !reviewComment.trim()} className="w-full bg-[#B89B6D] hover:bg-[#a08055] text-white py-3.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 disabled:opacity-50">
+                {isSubmittingReview ? 'Mengirim...' : 'Kirim Ulasan'}
+              </button>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
     </div>
+  )
+}
+
+export default function OrdersPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#FDFCF8]"><div className="animate-pulse text-[#B89B6D] font-black text-xl">Memuat...</div></div>}>
+      <OrdersContent />
+    </Suspense>
   )
 }

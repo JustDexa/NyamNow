@@ -16,7 +16,7 @@ interface ProductContext {
 export async function POST(req: Request) {
   try {
     const apiKey = process.env.GROQ_API_KEY
-    if (!apiKey) return NextResponse.json({ error: 'API Key Groq hilang bejir' }, { status: 500 })
+    if (!apiKey) return NextResponse.json({ error: 'API Key Groq hilang' }, { status: 500 })
 
     const { message } = await req.json()
 
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
 
     if (!groqResponse.ok) {
       console.error('GROQ ERROR:', groqData)
-      throw new Error(groqData.error?.message || 'Groq lagi pusing bejir')
+      throw new Error(groqData.error?.message || 'Groq lagi pusing')
     }
 
     const replyText = groqData.choices[0]?.message?.content || 'NyamBot lagi mikir keras...'

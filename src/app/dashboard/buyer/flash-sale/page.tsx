@@ -57,7 +57,7 @@ export default function FlashSalePage() {
   const [fsTime, setFsTime] = useState({ h1: '0', h2: '0', m1: '0', m2: '0', s1: '0', s2: '0' })
 
   // ==========================================
-  // ⚡ 1. REAL-TIME ENGINE (TIMER & STATUS)
+  // 1. REAL-TIME ENGINE (TIMER & STATUS)
   // ==========================================
   useEffect(() => {
     const timer = setInterval(() => {
@@ -100,7 +100,7 @@ export default function FlashSalePage() {
   }, [])
 
   // ==========================================
-  // 🧠 2. LOGIKA STATUS SESI (DYNAMIC LABELS)
+  // 2. LOGIKA STATUS SESI (DYNAMIC LABELS)
   // ==========================================
   const getSessionLabel = (session: string) => {
     const h = parseInt(session.split(':')[0])
@@ -123,71 +123,70 @@ export default function FlashSalePage() {
   }
 
   // ==========================================
-  // 📥 3. FETCH & FILTER DATA (STRICT DATE)
+  // 3. FETCH & FILTER DATA (STRICT DATE)
   // ==========================================
-  useEffect(() => {
+useEffect(() => {
     const fetchFS = async () => {
-  setIsLoading(true)
-  try {
-    const { data, error } = await supabase
-      .from('promos')
-      .select(`
-        discount_price, start_at, end_at, product_id,
-        products ( id, name, price, image_url, stores ( id, name ) )
-      `)
-      .eq('type', 'flash_sale')
-      .eq('is_active', true)
+      setIsLoading(true)
+      try {
+        const { data, error } = await supabase
+          .from('promos')
+          .select(`
+            discount_price, start_at, end_at, product_id,
+            products!promos_product_id_fkey ( id, name, price, image_url, stores ( id, name ) )
+          `)
+          .eq('type', 'flash_sale')
+          .eq('is_active', true)
 
-    if (error) throw error
+        if (error) throw error
 
-    const targetDate = getTargetDate()
-
-    // ✅ Casting data ke interface yang kita buat tadi
-    const rawData = (data as unknown) as SupabaseFSResponse[]
-
-    const formatted: ProductFlashSale[] = rawData
-      .map((item: SupabaseFSResponse) => ({
-        id: item.products.id,
-        name: item.products.name,
-        price: item.products.price,
-        image_url: item.products.image_url,
-        promo_price: item.discount_price,
-        store_id: item.products.stores.id,
-        store_name: item.products.stores.name,
-        distance: 1.2, // Masih dummy bejir
-        start_at: item.start_at,
-        end_at: item.end_at
-      }))
-      .filter(p => {
-        const pStart = new Date(p.start_at)
-        const pEnd = new Date(p.end_at)
         const targetDate = getTargetDate()
-        const sessionHour = parseInt(activeSession.split(':')[0])
-        
-        // 1. Cek apakah tanggalnya sama (Hari ini / Besok)
-        const isSameDate = (
-            pStart.getFullYear() === targetDate.getFullYear() &&
-            pStart.getMonth() === targetDate.getMonth() &&
-            pStart.getDate() === targetDate.getDate()
-        )
 
-        // 2. Cek apakah jam sesi (misal 21) ada di antara jam mulai dan jam berakhir promo
-        // Contoh: Promo 19:00 - 22:00, Sesi 21:00 -> (21 >= 19 && 21 < 22) = TRUE
-        const isWithinSession = sessionHour >= pStart.getHours() && sessionHour < pEnd.getHours()
+        const rawData = (data as unknown) as SupabaseFSResponse[]
 
-        return isSameDate && isWithinSession
-        })
+        const formatted: ProductFlashSale[] = rawData
+          .map((item: SupabaseFSResponse) => ({
+            id: item.products.id,
+            name: item.products.name,
+            price: item.products.price,
+            image_url: item.products.image_url,
+            promo_price: item.discount_price,
+            store_id: item.products.stores.id,
+            store_name: item.products.stores.name,
+            distance: 1.2, // Masih dummy 
+            start_at: item.start_at,
+            end_at: item.end_at
+          }))
+          .filter(p => {
+            const pStart = new Date(p.start_at)
+            const pEnd = new Date(p.end_at)
+            const targetDate = getTargetDate()
+            const sessionHour = parseInt(activeSession.split(':')[0])
+            
+            // 1. Cek apakah tanggalnya sama (Hari ini / Besok)
+            const isSameDate = (
+                pStart.getFullYear() === targetDate.getFullYear() &&
+                pStart.getMonth() === targetDate.getMonth() &&
+                pStart.getDate() === targetDate.getDate()
+            )
 
-    setFsProducts(formatted)
-  } catch (err) {
-    console.error("Gagal load flash sale bejir:", err)
-  } finally {
-    setIsLoading(false)
-  }
-}
+            // 2. Cek apakah jam sesi (misal 21) ada di antara jam mulai dan jam berakhir promo
+            // Contoh: Promo 19:00 - 22:00, Sesi 21:00 -> (21 >= 19 && 21 < 22) = TRUE
+            const isWithinSession = sessionHour >= pStart.getHours() && sessionHour < pEnd.getHours()
+
+            return isSameDate && isWithinSession
+          })
+
+        setFsProducts(formatted)
+      } catch (err) {
+        console.error("Gagal load flash sale:", err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
     fetchFS()
   }, [activeSession, currentHour]) // Akan fetch ulang kalau jam atau sesi ganti
-
   return (
     <div className="min-h-screen bg-[#FDFCF8] pb-20 text-left">
       

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { 
   Search, MapPin, Heart, ShoppingCart, 
   LogOut, Settings, ChevronRight, Timer, Star, Zap, Store, Filter, LocateFixed,
-  Bot, Send, X, ChevronDown, ChevronUp
+  Bot, Send, X, ChevronDown, ChevronUp,Lock
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
@@ -20,7 +20,7 @@ interface StoreData {
   latitude?: number
   longitude?: number
   rating_avg?: number
-  sold_count?: number // ✅ Tambahan buat fitur terjual di Toko
+  sold_count?: number 
 }
 
 interface Product {
@@ -32,6 +32,9 @@ interface Product {
   stores?: StoreData
   distance?: number 
   sold_count?: number
+  created_at?: string
+  weekly_sold_count?: number
+  is_best_seller?: boolean
 }
 
 interface Promo {
@@ -45,14 +48,31 @@ interface Promo {
   product_id?: string
 }
 
+interface Campaign {
+  id: string
+  title: string
+  banner_url: string
+  start_at: string
+  end_at: string
+}
+
 export default function BuyerDashboard() {
   const [activeTab, setActiveTab] = useState('Rekomendasi')
   const [showProfile, setShowProfile] = useState(false)
   const router = useRouter()
 
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [authMessage, setAuthMessage] = useState('')
+
+  const requireLogin = (message: string) => {
+    setAuthMessage(message)
+    setShowAuthModal(true)
+  }
+
   // STATE DATA
   const [products, setProducts] = useState<Product[]>([])
   const [promos, setPromos] = useState<Promo[]>([])
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]) // ✅ State Campaign
   const [isLoading, setIsLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
   const [userName, setUserName] = useState<string | null>(null)
@@ -71,15 +91,11 @@ export default function BuyerDashboard() {
   const [maxPrice, setMaxPrice] = useState('')
   const [userCoords, setUserCoords] = useState<{lat: number, lng: number} | null>(null)
 
-  // ==========================================
-  // 🚀 STATE EXPAND MENU & STORE
-  // ==========================================
+
   const [isMenuExpanded, setIsMenuExpanded] = useState(false)
   const [isStoreExpanded, setIsStoreExpanded] = useState(false)
 
-  // ==========================================
-  // ⚡ STATE FLASH SALE COUNTDOWN
-  // ==========================================
+
   const [fsStatus, setFsStatus] = useState<'waiting' | 'active'>('waiting')
   const [fsTime, setFsTime] = useState({ h: '00', m: '00', s: '00' })
 
@@ -121,12 +137,32 @@ export default function BuyerDashboard() {
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [chatInput, setChatInput] = useState('')
   const [chatMessages, setChatMessages] = useState([
-    { role: 'bot', text: 'Halo! Aku NyamBot 🤖 Ada yang bisa dibantu soal pesanan atau UMKM di sekitarmu?' }
+    { role: 'bot', text: 'Halo! Aku NyamBot, Ada yang bisa dibantu soal pesanan atau UMKM di sekitarmu?' }
   ])
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!chatInput.trim()) return
+
+    const userMessageCount = chatMessages.filter(m => m.role === 'user').length
+
+    if (!userId && userMessageCount >= 1) {
+      setChatMessages(prev => [...prev, { role: 'user', text: chatInput }])
+      setChatInput('')
+      
+      setTimeout(() => {
+        setChatMessages(prev => [...prev, { 
+          role: 'bot', 
+          text: 'Sesi percobaan NyamBot kamu udah habis nih. Yuk login dulu biar bisa lanjut ngobrol dan cari rekomendasi makanan enak!' 
+        }])
+        
+        setTimeout(() => {
+          requireLogin('Login dulu yuk buat lanjut ngobrol sama NyamBot!')
+        }, 1500)
+      }, 500)
+      
+      return
+    }
 
     const userMessage = chatInput
     setChatMessages(prev => [...prev, { role: 'user', text: userMessage }])
@@ -166,11 +202,10 @@ export default function BuyerDashboard() {
     return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)))
   }
 
-  // ✅ LOGIKA BARU FETCH PRODUK + SOLD COUNT
   const fetchProducts = async () => {
     setIsLoading(true)
     try {
-      let query = supabase.from('products').select('*, stores(id, name, latitude, longitude, address, profile_image_url, rating_avg)')
+      let query = supabase.from('products').select('*, created_at, stores(id, name, latitude, longitude, address, profile_image_url, rating_avg)')
 
       if (searchQuery) query = query.ilike('name', `%${searchQuery}%`)
       const min = parseInt(minPrice)
@@ -183,7 +218,6 @@ export default function BuyerDashboard() {
 
       let finalData = data as Product[]
 
-      // 🛒 Tarik data quantity pesanan selesai dari order_items
       if (finalData.length > 0) {
         const { data: salesData } = await supabase
           .from('order_items')
@@ -196,12 +230,36 @@ export default function BuyerDashboard() {
           salesMap[item.product_id] = (salesMap[item.product_id] || 0) + (item.quantity || 0)
         })
 
-        // Gabungin angka penjualan ke array produk
+        const sevenDaysAgo = new Date()
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+        const { data: weeklySalesData } = await supabase
+          .from('order_items')
+          .select('product_id, quantity, orders!inner(status, created_at)')
+          .eq('orders.status', 'completed')
+          .gte('orders.created_at', sevenDaysAgo.toISOString())
+          .in('product_id', finalData.map(p => p.id))
+
+        const weeklySalesMap: Record<string, number> = {}
+        weeklySalesData?.forEach(item => {
+          weeklySalesMap[item.product_id] = (weeklySalesMap[item.product_id] || 0) + (item.quantity || 0)
+        })
+
+        const maxWeeklySales = Math.max(...Object.values(weeklySalesMap), 0)
+
         finalData = finalData.map(p => ({
           ...p,
-          sold_count: salesMap[p.id] || 0
+          sold_count: salesMap[p.id] || 0,
+          weekly_sold_count: weeklySalesMap[p.id] || 0,
+          is_best_seller: maxWeeklySales > 0 && (weeklySalesMap[p.id] || 0) === maxWeeklySales,
         }))
       }
+
+      const sevenDaysAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000
+      finalData = finalData.sort((a, b) => {
+        const scoreA = a.is_best_seller ? 2 : (a.created_at && new Date(a.created_at).getTime() > sevenDaysAgoMs ? 1 : 0)
+        const scoreB = b.is_best_seller ? 2 : (b.created_at && new Date(b.created_at).getTime() > sevenDaysAgoMs ? 1 : 0)
+        return scoreB - scoreA
+      })
 
       if (userCoords) {
         finalData = finalData.map(p => ({
@@ -221,7 +279,10 @@ export default function BuyerDashboard() {
 
   const toggleStoreFavorite = async (e: React.MouseEvent, storeId: string) => {
     e.stopPropagation()
-    if (!userId) return alert('Silakan login dulu untuk menambahkan favorit!')
+    if (!userId) {
+      requireLogin('Login dulu yuk buat favoritin toko!')
+      return
+    }
 
     const isFaved = userStoreFavorites.includes(storeId)
 
@@ -238,7 +299,10 @@ export default function BuyerDashboard() {
 
   const toggleProductFavorite = async (e: React.MouseEvent, productId: string) => {
     e.stopPropagation()
-    if (!userId) return alert('Silakan login dulu untuk menambahkan favorit!')
+    if (!userId) {
+      requireLogin('Login dulu yuk buat masukin makanan ke favorit!')
+      return
+    }
 
     const isFaved = userProductFavorites.includes(productId)
 
@@ -279,6 +343,10 @@ export default function BuyerDashboard() {
       const { data: promoData } = await supabase.from('promos').select('*').eq('is_active', true).limit(5)
       setPromos(promoData || [])
 
+      // Fetch Active Campaigns from Database
+      const { data: campaignData } = await supabase.from('admin_campaigns').select('*').eq('is_active', true)
+      setCampaigns(campaignData || [])
+
       const { data: allStoreFavs } = await supabase.from('store_favorites').select('store_id')
       if (allStoreFavs) {
         const counts: Record<string, number> = {}
@@ -308,7 +376,6 @@ export default function BuyerDashboard() {
     }
   }
 
-  // ✅ LOGIKA KUMPULIN PENJUALAN PER TOKO
   const storeSalesMap: Record<string, number> = {}
   products.forEach(p => {
     if (p.stores?.id) {
@@ -316,7 +383,6 @@ export default function BuyerDashboard() {
     }
   })
 
-  // Ekstrak Toko yang Unik + masukin angka penjualan
   const uniqueStores = Array.from(new Map(products.filter(p => p.stores).map(p => [p.stores?.id, { 
     ...p.stores, 
     distance: p.distance, 
@@ -325,9 +391,8 @@ export default function BuyerDashboard() {
   }])).values())
 
   return (
-    <div className="min-h-screen bg-[#FDFCF8] text-black font-sans antialiased pb-20 text-left relative">
+    <div className="min-h-screen bg-[#FDFCF8] text-black font-sans antialiased pb-20 text-left relative overflow-x-hidden">
       
-      {/* HEADER STICKY */}
       <NavbarBuyer 
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -344,55 +409,67 @@ export default function BuyerDashboard() {
         handleLogout={handleLogout}
       />
 
-      <div className="max-w-6xl mx-auto px-6 mt-8">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 mt-6 md:mt-8">
         {!isSearching && (
           <>
-            <div className="mb-8">
-              <div className="flex justify-between items-center mb-5">
-                <h2 className="text-2xl font-[1000] text-[#a08055]">Promo Spesial</h2>
-              </div>
-              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
-                <div className="flex-shrink-0 w-[350px] h-40 bg-gradient-to-r from-orange-400 to-orange-500 rounded-2xl p-6 relative overflow-hidden shadow-md">
-                  <div className="relative z-10">
-                    <span className="bg-white/20 text-white text-[9px] font-black px-3 py-1 rounded-full mb-3 inline-block uppercase tracking-wider">Terbatas</span>
-                    <h3 className="text-white text-xl font-black leading-tight">DISKON 25%<br/>SEMUA MINUMAN</h3>
-                    <p className="text-white/70 text-[10px] mt-2">Hingga 24 April 2026</p>
-                  </div>
-                  <div className="absolute right-0 top-0 w-1/2 h-full opacity-30 mix-blend-overlay"><img src="https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=400" className="object-cover h-full w-full" /></div>
+            {/* ✅ BANNER CAMPAIGN DINAMIS (Menggantikan Dummy) */}
+            {campaigns.length > 0 && (
+              <div className="mb-6 md:mb-8">
+                <div className="flex justify-between items-center mb-4 md:mb-5">
+                  <h2 className="text-xl md:text-2xl font-[1000] text-[#a08055]">Promo Spesial NyamNow</h2>
+                </div>
+                <div className="flex gap-3 md:gap-4 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4 md:mx-0 md:px-0">
+                  {campaigns.map(campaign => (
+                    <div 
+                      key={campaign.id}
+                      onClick={() => router.push(`/dashboard/buyer/campaign/${campaign.id}`)}
+                      className="flex-shrink-0 w-[260px] sm:w-[300px] md:w-[350px] h-32 md:h-40 rounded-[20px] relative overflow-hidden shadow-lg cursor-pointer hover:scale-[1.02] transition-transform border border-slate-100 group"
+                    >
+                      <img src={campaign.banner_url} alt={campaign.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                      
+                      <div className="absolute bottom-4 left-4 right-4 z-10">
+                        <span className="bg-[#B89B6D] text-white text-[9px] font-black px-3 py-1 rounded-full mb-2 inline-flex items-center gap-1 uppercase tracking-wider shadow-md">
+                          <Zap size={10} className="text-yellow-300 fill-yellow-300" /> NyamNow Event
+                        </span>
+                        <h3 className="text-white text-lg md:text-xl font-black leading-tight drop-shadow-md truncate">{campaign.title}</h3>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
+            )}
 
             {/* BANNER FLASH SALE DINAMIS */}
             <div 
               onClick={() => router.push('/dashboard/buyer/flash-sale')}
-              className="relative w-full h-48 rounded-[2rem] overflow-hidden shadow-xl bg-gray-900 group cursor-pointer border-4 border-white mb-12 transition-transform hover:scale-[1.01]"
+              className="relative w-full h-36 md:h-48 rounded-[1.25rem] md:rounded-[2rem] overflow-hidden shadow-xl bg-gray-900 group cursor-pointer border-2 md:border-4 border-white mb-6 md:mb-12 transition-transform hover:scale-[1.01]"
             >
               <div className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 group-hover:scale-110" style={{backgroundImage: "url('https://images.unsplash.com/photo-1577106263724-2c8e03bfe9cf?q=80&w=1200')"}}></div>
-              <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/40 to-transparent"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/50 to-transparent"></div>
               
-              <div className="relative z-10 p-10 h-full flex flex-col justify-between">
-                <div className="flex items-center gap-3">
-                  <Zap size={32} className={`text-yellow-400 fill-yellow-400 ${fsStatus === 'active' ? 'animate-pulse' : ''}`} />
-                  <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase">Flash Sale</h2>
+              <div className="relative z-10 p-4 md:p-10 h-full flex flex-col justify-between">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <Zap size={20} className={`text-yellow-400 fill-yellow-400 md:w-8 md:h-8 ${fsStatus === 'active' ? 'animate-pulse' : ''}`} />
+                  <h2 className="text-xl md:text-4xl font-black text-white italic tracking-tighter uppercase">Flash Sale</h2>
                 </div>
                 
-                <div className="flex flex-col gap-2">
-                  <span className="text-white/80 text-xs font-bold uppercase tracking-widest">
+                <div className="flex flex-col gap-0.5 md:gap-2">
+                  <span className="text-white/80 text-[9px] md:text-xs font-bold uppercase tracking-widest">
                     {fsStatus === 'waiting' ? 'Mulai Dalam:' : 'Berakhir Dalam:'}
                   </span>
-                  <div className="flex gap-3">
-                    <div className="bg-orange-600 text-white rounded-xl px-4 py-2 flex flex-col items-center min-w-[55px] shadow-lg">
-                      <span className="text-lg font-black leading-none">{fsTime.h}</span>
-                      <span className="text-[8px] uppercase font-bold tracking-widest mt-1">Jam</span>
+                  <div className="flex gap-1.5 md:gap-3">
+                    <div className="bg-orange-600 text-white rounded-lg md:rounded-xl px-2 md:px-4 py-1 md:py-2 flex flex-col items-center min-w-[38px] md:min-w-[55px] shadow-lg">
+                      <span className="text-sm md:text-lg font-black leading-none">{fsTime.h}</span>
+                      <span className="text-[7px] md:text-[8px] uppercase font-bold tracking-widest mt-0.5">Jam</span>
                     </div>
-                    <div className="bg-orange-600 text-white rounded-xl px-4 py-2 flex flex-col items-center min-w-[55px] shadow-lg">
-                      <span className="text-lg font-black leading-none">{fsTime.m}</span>
-                      <span className="text-[8px] uppercase font-bold tracking-widest mt-1">Men</span>
+                    <div className="bg-orange-600 text-white rounded-lg md:rounded-xl px-2 md:px-4 py-1 md:py-2 flex flex-col items-center min-w-[38px] md:min-w-[55px] shadow-lg">
+                      <span className="text-sm md:text-lg font-black leading-none">{fsTime.m}</span>
+                      <span className="text-[7px] md:text-[8px] uppercase font-bold tracking-widest mt-0.5">Men</span>
                     </div>
-                    <div className="bg-orange-600 text-white rounded-xl px-4 py-2 flex flex-col items-center min-w-[55px] shadow-lg">
-                      <span className="text-lg font-black leading-none">{fsTime.s}</span>
-                      <span className="text-[8px] uppercase font-bold tracking-widest mt-1">Det</span>
+                    <div className="bg-orange-600 text-white rounded-lg md:rounded-xl px-2 md:px-4 py-1 md:py-2 flex flex-col items-center min-w-[38px] md:min-w-[55px] shadow-lg">
+                      <span className="text-sm md:text-lg font-black leading-none">{fsTime.s}</span>
+                      <span className="text-[7px] md:text-[8px] uppercase font-bold tracking-widest mt-0.5">Det</span>
                     </div>
                   </div>
                 </div>
@@ -403,27 +480,27 @@ export default function BuyerDashboard() {
 
         {isLoading ? (
           <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-50">
-             <div className="animate-bounce mb-4 text-3xl">🍱</div>
+             <div className="animate-bounce mb-4 text-3xl">🍲</div>
              <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Menyiapkan Data...</p>
           </div>
         ) : (
           <>
             {uniqueStores.length > 0 && (
-              <div className="mb-10">
+              <div className="mb-8 md:mb-10">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-2xl font-[1000] text-[#a08055]">Toko</h2>
+                  <h2 className="text-xl md:text-2xl font-[1000] text-[#a08055]">Toko</h2>
                   {uniqueStores.length > 4 && (
                     <button 
                       onClick={() => setIsStoreExpanded(!isStoreExpanded)}
-                      className="text-sm font-bold text-[#a08055] cursor-pointer hover:underline flex items-center gap-1"
+                      className="text-xs md:text-sm font-bold text-[#a08055] cursor-pointer hover:underline flex items-center gap-1"
                     >
                       {isStoreExpanded ? 'Sembunyikan' : 'Lihat Selengkapnya'}
-                      {isStoreExpanded ? <ChevronUp size={16} /> : <ChevronRight size={16} />}
+                      {isStoreExpanded ? <ChevronUp size={14} /> : <ChevronRight size={14} />}
                     </button>
                   )}
                 </div>
                 
-                <motion.div layout className={`gap-4 pb-4 ${isStoreExpanded ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'flex overflow-x-auto no-scrollbar'}`}>
+                <motion.div layout className={`gap-4 pb-4 ${isStoreExpanded ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'flex overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0'}`}>
                   <AnimatePresence>
                     {(isStoreExpanded ? uniqueStores : uniqueStores.slice(0, 4)).map((store, i) => {
                       const isStoreFaved = store.id ? userStoreFavorites.includes(store.id) : false;
@@ -438,36 +515,62 @@ export default function BuyerDashboard() {
                           transition={{ duration: 0.2 }}
                           key={store.id || i}
                           onClick={() => store.id && router.push(`/dashboard/buyer/store/${store.id}`)}
-                          className={`${isStoreExpanded ? 'w-full' : 'w-[280px] flex-shrink-0'} bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col cursor-pointer hover:shadow-md transition-shadow relative`}
+                          className={`${isStoreExpanded ? 'w-full' : 'w-[200px] sm:w-[240px] md:w-[280px] flex-shrink-0'} bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col cursor-pointer hover:shadow-md transition-shadow relative`}
                         >
                           <button
                             onClick={(e) => { e.stopPropagation(); store.id && toggleStoreFavorite(e, store.id); }}
-                            className="absolute top-3 right-3 z-10 w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
+                            className="absolute top-2 right-2 md:top-3 md:right-3 z-10 w-7 h-7 md:w-8 md:h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
                           >
-                            <Heart size={16} className={`transition-colors ${isStoreFaved ? "text-red-500 fill-red-500" : "text-gray-400"}`} />
+                            <Heart size={14} className={`transition-colors ${isStoreFaved ? "text-red-500 fill-red-500" : "text-gray-400"}`} />
                           </button>
 
-                          <div className="w-full h-40 bg-gray-200">
+                          <div className="w-full h-28 md:h-40 bg-gray-200">
                             <img src={store.profile_image_url || store.fallbackImage} alt={store.name} className="w-full h-full object-cover" />
                           </div>
 
-                          <div className="p-4 flex flex-col flex-1 bg-[#FDFCF8]">
-                            <h3 className="text-lg font-black text-gray-900 leading-tight truncate">{store.name}</h3>
-                            <p className="text-[10px] text-gray-500 mb-2 truncate">{store.address || "Alamat tidak tersedia"}</p>
+                          <div className="p-2.5 md:p-4 flex flex-col flex-1 bg-[#FDFCF8]">
+                            <h3 className="text-sm md:text-lg font-black text-gray-900 leading-tight truncate">{store.name}</h3>
+                            <p className="text-[9px] md:text-[10px] text-gray-500 mb-1.5 md:mb-2 truncate">{store.address || "Alamat tidak tersedia"}</p>
 
                             <div className="flex items-center gap-0.5 mb-2">
-                              {[1, 2, 3, 4, 5].map((star) => <Star key={star} size={12} className="fill-yellow-400 text-yellow-400" />)}
-                              <div className="bg-[#4CAF50] text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ml-1">{store.rating_avg || 5}</div>
+                              {store.rating_avg && store.rating_avg > 0 ? (
+                                <>
+                                  {[1, 2, 3, 4, 5].map((star) => {
+                                    const rating = store.rating_avg || 0;
+                                    const full = star <= Math.floor(rating);
+                                    const half = !full && star === Math.ceil(rating) && rating % 1 >= 0.25;
+                                    return (
+                                      <svg key={star} width="10" height="10" viewBox="0 0 24 24" className="md:w-3 md:h-3 flex-shrink-0">
+                                        <defs>
+                                          <linearGradient id={`half-${store.id}-${star}`}>
+                                            <stop offset="50%" stopColor="#FACC15" />
+                                            <stop offset="50%" stopColor="#E5E7EB" />
+                                          </linearGradient>
+                                        </defs>
+                                        <polygon
+                                          points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
+                                          fill={full ? '#FACC15' : half ? `url(#half-${store.id}-${star})` : '#E5E7EB'}
+                                          stroke={full || half ? '#FACC15' : '#E5E7EB'}
+                                          strokeWidth="1"
+                                        />
+                                      </svg>
+                                    );
+                                  })}
+                                  <div className="bg-[#4CAF50] text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center ml-1">
+                                    {store.rating_avg}
+                                  </div>
+                                </>
+                              ) : (
+                                <span className="text-[9px] font-bold text-gray-400 italic">Belum ada ulasan</span>
+                              )}
                             </div>
-
-                            <p className="text-[10px] text-gray-500 flex items-center gap-1.5 mb-3">
-                              {/* ✅ ANGKA TOKO DINAMIS */}
+                            <p className="text-[9px] md:text-[10px] text-gray-500 flex items-center gap-1.5 mb-3">
                               {store.sold_count || 0} terjual <span className="text-gray-300">|</span>
                               {store.distance ? `${store.distance.toFixed(1)}km` : "0km"} <span className="text-gray-300">|</span> 15min
                             </p>
 
-                            <div className="mt-auto flex items-center gap-1.5 pt-3 border-t border-gray-100 text-[10px] text-gray-500 font-medium">
-                              <Heart size={14} className={isStoreFaved ? "text-red-500 fill-red-500" : "text-gray-300"} /> Disukai oleh {storeFavCount}
+                            <div className="mt-auto flex items-center gap-1.5 pt-3 border-t border-gray-100 text-[9px] md:text-[10px] text-gray-500 font-medium">
+                              <Heart size={12} className={isStoreFaved ? "text-red-500 fill-red-500" : "text-gray-300"} /> Disukai oleh {storeFavCount}
                             </div>
                           </div>
                         </motion.div>
@@ -480,14 +583,14 @@ export default function BuyerDashboard() {
 
             <div>
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-[1000] text-[#a08055]">Menu</h2>
+                <h2 className="text-xl md:text-2xl font-[1000] text-[#a08055]">Menu</h2>
                 {products.length > 6 && (
                   <button 
                     onClick={() => setIsMenuExpanded(!isMenuExpanded)}
-                    className="text-sm font-bold text-[#a08055] cursor-pointer hover:underline flex items-center gap-1"
+                    className="text-xs md:text-sm font-bold text-[#a08055] cursor-pointer hover:underline flex items-center gap-1"
                   >
                     {isMenuExpanded ? 'Sembunyikan' : 'Lihat Selengkapnya'}
-                    {isMenuExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    {isMenuExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                   </button>
                 )}
               </div>
@@ -495,11 +598,15 @@ export default function BuyerDashboard() {
               {products.length === 0 ? (
                 <div className="text-center py-10 text-gray-400 font-bold italic">Menu tidak ditemukan.</div>
               ) : (
-                <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <motion.div layout className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
                   <AnimatePresence>
                     {(isMenuExpanded ? products : products.slice(0, 6)).map((product) => {
                       const isProductFaved = userProductFavorites.includes(product.id);
                       const productFavCount = productFavCounts[product.id] || 0;
+
+                      const isNew = product.created_at
+                        ? (Date.now() - new Date(product.created_at).getTime()) < 7 * 24 * 60 * 60 * 1000
+                        : false
 
                       return (
                         <motion.div
@@ -510,33 +617,42 @@ export default function BuyerDashboard() {
                           transition={{ duration: 0.2 }}
                           key={product.id}
                           onClick={() => product.stores?.id && router.push(`/dashboard/buyer/store/${product.stores.id}`)}
-                          className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 flex gap-4 items-center cursor-pointer hover:shadow-md transition-shadow"
+                          className="bg-white rounded-2xl shadow-sm border border-gray-100 p-0 md:p-3 flex flex-col md:flex-row gap-0 md:gap-4 cursor-pointer hover:shadow-md transition-shadow relative overflow-visible"
                         >
-                          <div className="w-20 h-20 rounded-[15px] bg-gray-200 flex-shrink-0 overflow-hidden">
-                            <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                          <div className="relative flex-shrink-0">
+                            <div className="w-full h-28 md:w-20 md:h-20 rounded-t-2xl md:rounded-[15px] bg-gray-200 overflow-hidden">
+                              <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                            </div>
+                            {product.is_best_seller && (
+                              <img src="/Best_Seller.svg" alt="Best Seller" className="absolute -top-2 -left-1 h-7 md:h-9 pointer-events-none drop-shadow-md" style={{zIndex: 10}} />
+                            )}
+                            {!product.is_best_seller && isNew && (
+                              <img src="/New_Menu.svg" alt="New" className="absolute -top-1.5 -left-1 h-5 md:h-7 pointer-events-none drop-shadow-sm" style={{zIndex: 10}} />
+                            )}
                           </div>
 
-                          <div className="flex-1 min-w-0 py-1">
-                            <h4 className="text-base font-black text-gray-900 truncate leading-tight mb-0.5">{product.name}</h4>
-                            <div className="flex items-center gap-1 text-[10px] text-gray-500 mb-1.5 truncate">
-                              <Store size={10} className="text-[#a08055]" /> {product.stores?.name || "Toko NyamNow"}
+                          <div className="flex flex-1 min-w-0 md:py-1 p-2.5 md:p-0 items-start gap-2 md:gap-0">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-xs md:text-base font-black text-gray-900 truncate leading-tight mb-0.5">{product.name}</h4>
+                              <div className="flex items-center gap-1 text-[8px] md:text-[10px] text-gray-500 mb-1 truncate">
+                                <Store size={9} className="text-[#a08055] flex-shrink-0" /> {product.stores?.name || "Toko NyamNow"}
+                              </div>
+                              <div className="text-xs md:text-[13px] font-black text-[#2E7D32] mb-0.5 md:mb-1">Rp{product.price.toLocaleString("id-ID")}</div>
+                              <div className="text-[7px] md:text-[9px] text-gray-400 flex items-center gap-1">
+                                {product.sold_count || 0} terjual <span className="text-gray-200">|</span>
+                                {product.distance ? `${product.distance.toFixed(1)}km` : "0km"} <span className="text-gray-200">|</span> 15min
+                              </div>
                             </div>
-                            <div className="text-[13px] font-black text-[#2E7D32] mb-1">Rp{product.price.toLocaleString("id-ID")}</div>
-                            <div className="text-[9px] text-gray-400 flex items-center gap-1.5">
-                              {/* ✅ ANGKA PRODUK DINAMIS */}
-                              {product.sold_count || 0} terjual <span className="text-gray-200">|</span>
-                              {product.distance ? `${product.distance.toFixed(1)}km` : "0km"} <span className="text-gray-200">|</span> 15min
-                            </div>
-                          </div>
 
-                          <div className="flex flex-col items-center justify-center pl-2 border-l border-transparent self-stretch min-w-[40px]">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); toggleProductFavorite(e, product.id); }}
-                              className="p-1 hover:scale-110 transition-transform"
-                            >
-                              <Heart size={18} className={`transition-colors mb-1 ${isProductFaved ? "text-red-500 fill-red-500" : "text-gray-300 hover:text-red-400"}`} />
-                            </button>
-                            <span className="text-[9px] text-gray-400 font-bold">{productFavCount}</span>
+                            <div className="flex flex-col items-center justify-center md:pl-2 md:border-l md:border-transparent md:self-stretch min-w-[28px] md:min-w-[40px]">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); toggleProductFavorite(e, product.id); }}
+                                className="p-1 hover:scale-110 transition-transform"
+                              >
+                                <Heart size={14} className={`transition-colors mb-0.5 md:w-5 md:h-5 ${isProductFaved ? "text-red-500 fill-red-500" : "text-gray-300 hover:text-red-400"}`} />
+                              </button>
+                              <span className="text-[7px] md:text-[9px] text-gray-400 font-bold">{productFavCount}</span>
+                            </div>
                           </div>
                         </motion.div>
                       );
@@ -549,15 +665,61 @@ export default function BuyerDashboard() {
         )}
       </div>
 
-      {/* 🤖 POP-UP CHATBOT NYAMBOT */}
+      {/* 🤖 POP-UP CHATBOT NYAMBOT & MODAL AUTH */}
       <AnimatePresence>
+        {showAuthModal && (
+          <motion.div
+            key="auth-modal-overlay" 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-[24px] md:rounded-[32px] p-6 md:p-8 max-w-sm w-full text-center shadow-2xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-[#B89B6D]/20 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="relative z-10">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-[#FAF4EB] rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6 border-4 border-white shadow-lg">
+                  <Lock className="w-8 h-8 md:w-10 md:h-10 text-[#B89B6D]" />
+                </div>
+                
+                <h3 className="text-xl md:text-2xl font-black text-gray-900 mb-2 tracking-tight italic uppercase">Eits, Tunggu Dulu!</h3>
+                <p className="text-xs md:text-sm font-bold text-gray-500 mb-6 md:mb-8 leading-relaxed">
+                  {authMessage}
+                </p>
+                
+                <div className="flex flex-col gap-2 md:gap-3">
+                  <button
+                    onClick={() => router.push('/login')}
+                    className="w-full bg-[#B89B6D] text-white py-3 md:py-4 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-[11px] shadow-[0_10px_20px_rgba(184,155,109,0.3)] hover:scale-105 active:scale-95 transition-all"
+                  >
+                    Login Sekarang
+                  </button>
+                  <button
+                    onClick={() => setShowAuthModal(false)}
+                    className="w-full bg-gray-50 text-gray-400 py-3 md:py-4 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-[11px] hover:bg-gray-100 transition-colors"
+                  >
+                    Nanti Aja
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
         {isChatOpen && (
           <motion.div
+            key="chat-bot-widget" 
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.9 }}
-            className="fixed bottom-6 right-6 w-80 md:w-96 bg-white rounded-2xl shadow-2xl z-[9999] flex flex-col border border-gray-100 overflow-hidden"
-            style={{ height: '500px', maxHeight: '80vh' }}
+            className="fixed bottom-4 right-4 md:bottom-6 md:right-6 w-[calc(100vw-2rem)] md:w-96 bg-white rounded-2xl shadow-2xl z-[9999] flex flex-col border border-gray-100 overflow-hidden"
+            style={{ height: '500px', maxHeight: '75vh' }}
           >
             <div className="bg-[#B89B6D] px-4 py-3 flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-2 text-white">
@@ -599,12 +761,12 @@ export default function BuyerDashboard() {
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder="Tanya sesuatu ke NyamBot..." 
-                className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-[#B89B6D] transition-colors"
+                className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 md:px-4 py-2 md:py-2.5 text-[11px] md:text-xs outline-none focus:border-[#B89B6D] transition-colors"
               />
               <button 
                 type="submit"
                 disabled={!chatInput.trim()}
-                className="bg-[#B89B6D] text-white p-2.5 rounded-xl hover:bg-[#a08055] disabled:opacity-50 transition-colors shadow-sm"
+                className="bg-[#B89B6D] text-white p-2 md:p-2.5 rounded-xl hover:bg-[#a08055] disabled:opacity-50 transition-colors shadow-sm"
               >
                 <Send size={16} />
               </button>
