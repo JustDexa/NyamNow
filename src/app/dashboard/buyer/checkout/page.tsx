@@ -210,6 +210,8 @@ function CheckoutContent() {
     }
   }, [cart])
 
+  
+
   // --- LOGIKA RESERVASI STRICT BERKEMBANG ---
   const isBerkembang = sellerType === 'berkembang'
 
@@ -255,6 +257,22 @@ function CheckoutContent() {
       return { eligible: true, reason: `Hemat Rp${(cartItem.price - promo.discount_price).toLocaleString('id-ID')}/item`, discountAmount: (cartItem.price - promo.discount_price) * cartItem.quantity }
     }
   }, [cart])
+  
+  useEffect(() => {
+    if (appliedPromo) {
+      const { eligible, discountAmount } = checkEligibility(appliedPromo)
+      
+      if (!eligible) {
+        // Kalau udah ga memenuhi syarat (misal dari beli 2 jadi beli 1), cabut promo
+        setAppliedPromo(null)
+        setPromoDiscount(0)
+      } else {
+        // Kalau masih memenuhi syarat tapi qty berubah, update jumlah diskonnya
+        setPromoDiscount(discountAmount)
+      }
+    }
+  }, [cart, appliedPromo, checkEligibility])
+  
 
   if (isLoading && !showSuccessModal) return <div className="min-h-screen bg-[#FDFCF8] flex items-center justify-center font-black text-[#B89B6D] animate-pulse">Menyiapkan Pesanan...</div>
 

@@ -337,7 +337,7 @@ function OrdersContent() {
                 disabled={isProcessingPayment}
                 className="w-full bg-[#B89B6D] hover:bg-[#a08055] text-white py-3.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 disabled:opacity-50"
               >
-                {isProcessingPayment ? 'Memproses...' : '✅ Konfirmasi Bayar'}
+                {isProcessingPayment ? 'Memproses...' : 'Konfirmasi Bayar'}
               </button>
             </motion.div>
           </div>
