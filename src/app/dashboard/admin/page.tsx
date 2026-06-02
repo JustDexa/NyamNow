@@ -679,7 +679,6 @@ function ModuleCampaign() {
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 md:col-span-1">
               <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1.5">Judul Campaign</label>
-              {/* ✅ Warna teks input diubah jadi hitam pekat & tebal */}
               <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Contoh: Promo Lebaran 2025" className="w-full bg-gray-50 border border-gray-200 focus:border-[#B89B6D] rounded-xl px-4 py-3 text-sm outline-none transition-colors text-gray-900 font-bold" />
             </div>
             <div className="col-span-2 md:col-span-1 flex flex-col md:flex-row gap-4">
@@ -807,9 +806,8 @@ function ModuleBroadcast() {
         const { error: notifErr } = await supabase.from('notifications').update({ title: title.trim(), message: message.trim() }).eq('reference_id', editingId)
         if (notifErr) throw notifErr
         
-        setSent({ count: 0 }) // Kasih indikator sukses edit
+        setSent({ count: 0 })
       } else {
-        // Mode Kirim Baru
         let query = supabase.from('users').select('id')
         if (target === 'buyer')  query = query.eq('role', 'buyer')
         if (target === 'seller') query = query.eq('role', 'seller')

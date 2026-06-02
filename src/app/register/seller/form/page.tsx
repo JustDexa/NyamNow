@@ -175,7 +175,6 @@ function SellerFormContent() {
   return (
     <div className="h-screen w-full flex bg-white font-sans overflow-hidden">
       
-      {/* KIRI: ILUSTRASI (Fixed 45%) */}
       <div className="hidden lg:flex w-[45%] h-full bg-slate-50 flex-col justify-center items-center p-16 relative">
         <div className="absolute top-20 left-20 w-64 h-64 bg-blue-100 rounded-full blur-3xl opacity-50" />
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center relative z-10">
@@ -192,10 +191,8 @@ function SellerFormContent() {
         </motion.div>
       </div>
 
-      {/* KANAN: FORM ATAU COMING SOON */}
       <div className="w-full lg:w-[55%] h-full bg-[#3b5998] lg:rounded-l-[80px] relative shadow-[-20px_0_60px_rgba(0,0,0,0.1)] flex flex-col">
         
-        {/* LOGIKA PENCEGAHAN: Kalau type-nya berkembang, form di-hide */}
         {type.toLowerCase() === 'berkembang' ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 md:p-12 lg:p-20 text-center relative z-10">
             <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center">
@@ -217,12 +214,10 @@ function SellerFormContent() {
           </div>
         ) : (
           <>
-            {/* Progress Bar - Hanya muncul kalau bukan 'berkembang' */}
             <div className="absolute top-8 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-white/10 rounded-full overflow-hidden z-20">
               <motion.div animate={{ width: `${(step/4)*100}%` }} className="h-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
             </div>
 
-            {/* Scrollable Content Form */}
             <div className="flex-1 overflow-y-auto no-scrollbar p-8 md:p-12 lg:p-20 flex justify-center items-start">
               <div className="max-w-md w-full py-10">
                 <header className="mb-10 text-center lg:text-left">

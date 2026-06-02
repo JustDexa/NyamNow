@@ -84,8 +84,6 @@ export default function ChatRoom() {
 
     const messageText = newMessage
     setNewMessage('') 
-
-    // ✅ FIX: Pake .select().single() buat dapet ID pesannya langsung
     const { data, error } = await supabase.from('messages').insert({
       conversation_id: conversationId,
       sender_id: currentUserId,

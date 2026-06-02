@@ -57,14 +57,10 @@ export default function RegisterPage() {
             Buka Toko <ArrowRight size={12} className="group-hover:translate-x-2 transition-transform" />
           </div>
         </div>
-
-        {/* Text Latar (Background Text) */}
         <span className="absolute top-10 left-1/2 -translate-x-1/2 text-[100px] font-black text-white/5 select-none -z-0 group-hover:text-white/10 transition-colors hidden md:block">
           SELLER
         </span>
       </button>
-
-      {/* TOMBOL KEMBALI (DI BAWAH TENGAH) */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30">
         <button 
           onClick={() => router.push('/login')}

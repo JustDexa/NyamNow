@@ -141,7 +141,7 @@ function BuyerOrderCard({ order, onPay, onReview }: { order: Order, onPay: (id: 
             </button>
           )}
 
-          {/* ✅ TOMBOL BERI ULASAN */}
+          {/* TOMBOL BERI ULASAN */}
           {order.status === 'completed' && !order.is_reviewed && (
             <button onClick={() => onReview(order.id, order.store_id)} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center gap-2">
               <Star size={16} className="fill-white" /> Beri Ulasan
@@ -314,7 +314,7 @@ function OrdersContent() {
         </div>
       </div>
 
-      {/* ✅ MODAL SIMULASI PEMBAYARAN */}
+      {/*MODAL SIMULASI PEMBAYARAN */}
       <AnimatePresence>
         {paymentModal.isOpen && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -344,7 +344,7 @@ function OrdersContent() {
         )}
       </AnimatePresence>
 
-      {/* ✅ MODAL REVIEW */}
+      {/* MODAL REVIEW */}
       <AnimatePresence>
         {reviewModal.isOpen && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">

@@ -51,8 +51,6 @@ export default function Navbar() {
 
   return (
     <nav className="h-[72px] w-full bg-[#CBAE81] flex items-center justify-between px-6 lg:px-8 shadow-sm z-50 shrink-0 relative">
-      
-      {/* LOGO KIRI - UKURAN DIKECILIN BIAR PROPORSIONAL */}
       <div className="flex items-center gap-2.5">
         <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center p-0.5 border-2 border-white/50 overflow-hidden shadow-sm">
           <img src="/images/iconNyamnow.png" alt="Logo" className="w-full h-full object-contain" />
@@ -64,7 +62,6 @@ export default function Navbar() {
       <div className="flex items-center gap-5 lg:gap-6">
         
         <div className="flex gap-4 items-center">
-          {/* ✅ IKON DIKECILIN JADI size 22 & NOTIF DINAMIS */}
           <div className="relative cursor-pointer text-white hover:text-white/80 transition-colors flex items-center justify-center">
             <Bell size={22} />
             {unreadNotifCount > 0 && (
@@ -76,7 +73,7 @@ export default function Navbar() {
           
           <div 
             className="relative cursor-pointer text-white hover:text-white/80 transition-colors flex items-center justify-center"
-            onClick={() => router.push('/dashboard/seller/chats')} // Pintu masuk buat fitur chat nanti
+            onClick={() => router.push('/dashboard/seller/chats')}
           >
             <MessageSquare size={22} />
             {unreadChatCount > 0 && (
@@ -87,7 +84,7 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* PROFILE CHIP DENGAN DROPDOWN - PADDING DI-PRESS BIAR RAPI */}
+        {/* PROFILE CHIP DENGAN DROPDOWN */}
         <div className="relative">
           <button 
             onClick={() => setShowDropdown(!showDropdown)}

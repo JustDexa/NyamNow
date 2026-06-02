@@ -63,13 +63,12 @@ function SellerOrderCard({ order, onStatusChange }: { order: SellerOrder, onStat
   const [isExpired, setIsExpired] = useState(false)
 
   const autoCancelOrder = useCallback(async () => {
-    // Biar gak spam update ke DB
     if (order.status === 'cancelled') return;
     await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id)
     onStatusChange(order.id, 'cancelled')
   }, [order.id, order.status, onStatusChange])
 
-  // Logic Timer (Hanya nyala pas nunggu konfirmasi atau nunggu bayar)
+  // Logic Timer
   useEffect(() => {
     if (order.status !== 'waiting_confirmation' && order.status !== 'waiting_payment') return
 
@@ -108,7 +107,7 @@ function SellerOrderCard({ order, onStatusChange }: { order: SellerOrder, onStat
     }).eq('id', order.id)
 
     if (error) {
-      alert("GAGAL ACC: " + error.message) // ✅ Nambahin ini biar errornya keliatan
+      alert("GAGAL ACC: " + error.message)
       console.error(error)
     } else {
       onStatusChange(order.id, 'waiting_payment', paymentDeadline.toISOString())
@@ -302,7 +301,7 @@ export default function SellerOrdersHistory() {
     const channel = supabase
       .channel('seller_orders_realtime')
       .on('postgres_changes', { 
-        event: '*', // Dengerin INSERT & UPDATE
+        event: '*',
         schema: 'public', 
         table: 'orders'
       }, (payload) => {

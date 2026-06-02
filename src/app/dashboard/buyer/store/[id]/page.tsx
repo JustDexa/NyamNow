@@ -331,7 +331,6 @@ export default function StoreDetail() {
     let finalQty = modalQty;
     let finalPrice = priceInfo.currentPrice;
 
-    // Kalau ada promo terpasang, cek mekaniknya
     if (promoApplied && promoApplied.type === 'promo') {
       const buyQty = promoApplied.buy_qty ?? 1
       const getQty = promoApplied.get_qty ?? 0
@@ -890,24 +889,19 @@ export default function StoreDetail() {
               initial={{ opacity: 0, y: '100%' }} 
               animate={{ opacity: 1, y: 0 }} 
               exit={{ opacity: 0, y: '100%' }} 
-              className="bg-[#FDFCF8] w-full md:max-w-4xl rounded-t-3xl md:rounded-3xl overflow-hidden flex flex-col md:flex-row shadow-2xl h-[90vh] md:h-auto md:max-h-[90vh]"
+              className="bg-[#FDFCF8] w-full md:max-w-4xl rounded-t-3xl md:rounded-3xl overflow-hidden flex flex-col md:flex-row shadow-2xl h-[90vh] md:h-[85vh] md:max-h-[750px]"
             >
-              {/* Bagian Kiri: Gambar (Mobile ditaruh atas) */}
-              <div className="w-full md:w-1/2 h-56 md:h-auto bg-gray-200 relative flex-shrink-0">
+              <div className="w-full md:w-1/2 h-56 md:h-full bg-gray-200 relative flex-shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={selectedProduct.image_url} alt={selectedProduct.name} className="w-full h-full object-cover" />
                 <button onClick={() => setSelectedProduct(null)} className="absolute top-4 right-4 bg-white/80 backdrop-blur p-2 rounded-full text-gray-800 hover:bg-white transition-colors shadow-md md:hidden z-50">
                   <X size={20} />
                 </button>
               </div>
-
-              {/* Bagian Kanan: Info & Action */}
-              <div className="w-full md:w-1/2 flex flex-col h-full bg-white relative text-left overflow-hidden">
+              <div className="w-full md:w-1/2 flex flex-col h-full bg-white relative text-left overflow-hidden min-h-0">
                 <button onClick={() => setSelectedProduct(null)} className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full text-gray-500 hover:bg-gray-200 transition-colors hidden md:block z-20">
                   <X size={20} />
                 </button>
-                
-                {/* Info Atas (Fixed, gak ikut scroll) */}
                 <div className="p-5 md:p-8 pb-3 md:pb-4 bg-white z-10 flex-shrink-0">
                   <div className="flex justify-between items-start md:mr-8">
                     <h2 className="text-xl md:text-2xl font-black text-gray-900 leading-tight">{selectedProduct.name}</h2>
@@ -969,7 +963,7 @@ export default function StoreDetail() {
                     )
                   })()}
                   
-                  {/* ✅ INDIKATOR STOK DI DALAM MODAL */}
+                  {/* INDIKATOR STOK DI DALAM MODAL */}
                   <div className="mt-3">
                     {selectedProduct.stock > 5 ? (
                       <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-green-600 bg-green-50 px-2 md:px-3 py-1 md:py-1.5 rounded-lg border border-green-100">Tersedia {selectedProduct.stock} Porsi</span>
@@ -982,7 +976,7 @@ export default function StoreDetail() {
                 </div>
                 
                 {/* Area Scroll (Bisa digeser) */}
-                <div className="px-5 md:px-8 pb-4 overflow-y-auto flex-1 no-scrollbar space-y-5 md:space-y-6">
+                <div className="px-5 md:px-8 pb-4 overflow-y-auto flex-1 min-h-0 no-scrollbar space-y-5 md:space-y-6">
                   <p className="text-xs md:text-sm text-gray-500 leading-relaxed">{selectedProduct.description || 'Tidak ada deskripsi untuk menu ini.'}</p>
                   
                   <div className="space-y-4">
@@ -1035,7 +1029,7 @@ export default function StoreDetail() {
                 </div>
 
                 {/* Bottom Bar (Fixed, gak ikut scroll) */}
-                <div className="p-4 md:p-6 pb-6 md:pb-6 bg-white md:bg-gray-50 border-t border-gray-100 flex items-center gap-2 md:gap-4 z-10 flex-shrink-0 shadow-[0_-5px_15px_rgba(0,0,0,0.02)]">
+                <div className="p-4 md:p-6 pb-6 md:pb-6 bg-white md:bg-gray-50 border-t border-gray-100 flex items-center gap-2 md:gap-4 z-10 flex-shrink-0 mt-auto shadow-[0_-5px_15px_rgba(0,0,0,0.02)]">
                   <div className="flex items-center gap-2 md:gap-4 bg-gray-50 md:bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm">
                     <button onClick={() => setModalQty(Math.max(1, modalQty - 1))} className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors"><Minus size={16}/></button>
                     <span className="font-black text-sm md:text-lg w-4 md:w-6 text-center">{modalQty}</span>

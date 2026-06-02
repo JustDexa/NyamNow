@@ -18,7 +18,10 @@ interface ProductFlashSale {
   promo_price: number
   store_id: string
   store_name: string
-  distance: number
+  store_rating: number
+  store_reviews: number
+  store_lat: number 
+  store_lng: number 
   start_at: string
   end_at: string
 }
@@ -35,8 +38,24 @@ interface SupabaseFSResponse {
     stores: {
       id: string;
       name: string;
+      rating_avg: number;
+      total_reviews: number;
+      latitude: number; 
+      longitude: number; 
     };
   };
+}
+
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371; // Radius bumi dalam KM
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return (R * c).toFixed(1); // Ambil 1 angka di belakang koma
 }
 
 export default function FlashSalePage() {
@@ -50,11 +69,24 @@ export default function FlashSalePage() {
   // DATA STATES
   const [fsProducts, setFsProducts] = useState<ProductFlashSale[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null) 
 
   // TIMER & REALTIME STATES
   const [currentHour, setCurrentHour] = useState(new Date().getHours())
   const [fsStatus, setFsStatus] = useState<'waiting' | 'active'>('waiting')
   const [fsTime, setFsTime] = useState({ h1: '0', h2: '0', m1: '0', m2: '0', s1: '0', s2: '0' })
+
+  // ==========================================
+  // 0. AMBIL LOKASI GPS PEMBELI
+  // ==========================================
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (err) => console.log("Gagal akses GPS pembeli:", err)
+      )
+    }
+  }, [])
 
   // ==========================================
   // 1. REAL-TIME ENGINE (TIMER & STATUS)
@@ -125,7 +157,7 @@ export default function FlashSalePage() {
   // ==========================================
   // 3. FETCH & FILTER DATA (STRICT DATE)
   // ==========================================
-useEffect(() => {
+  useEffect(() => {
     const fetchFS = async () => {
       setIsLoading(true)
       try {
@@ -133,7 +165,7 @@ useEffect(() => {
           .from('promos')
           .select(`
             discount_price, start_at, end_at, product_id,
-            products!promos_product_id_fkey ( id, name, price, image_url, stores ( id, name ) )
+            products!promos_product_id_fkey ( id, name, price, image_url, stores ( id, name, rating_avg, total_reviews, latitude, longitude ) ) 
           `)
           .eq('type', 'flash_sale')
           .eq('is_active', true)
@@ -141,7 +173,6 @@ useEffect(() => {
         if (error) throw error
 
         const targetDate = getTargetDate()
-
         const rawData = (data as unknown) as SupabaseFSResponse[]
 
         const formatted: ProductFlashSale[] = rawData
@@ -153,7 +184,10 @@ useEffect(() => {
             promo_price: item.discount_price,
             store_id: item.products.stores.id,
             store_name: item.products.stores.name,
-            distance: 1.2, // Masih dummy 
+            store_rating: item.products.stores.rating_avg || 0,
+            store_reviews: item.products.stores.total_reviews || 0, 
+            store_lat: item.products.stores.latitude,
+            store_lng: item.products.stores.longitude, 
             start_at: item.start_at,
             end_at: item.end_at
           }))
@@ -186,7 +220,8 @@ useEffect(() => {
     }
     
     fetchFS()
-  }, [activeSession, currentHour]) // Akan fetch ulang kalau jam atau sesi ganti
+  }, [activeSession, currentHour]) 
+
   return (
     <div className="min-h-screen bg-[#FDFCF8] pb-20 text-left">
       
@@ -313,7 +348,9 @@ useEffect(() => {
                       <h3 className="font-black text-gray-900 truncate">{product.name}</h3>
                       <div className="flex items-center gap-1 my-1">
                         <Star size={12} className="fill-yellow-400 text-yellow-400" />
-                        <span className="text-[10px] font-bold text-gray-500">4.8 (125)</span>
+                        <span className="text-[10px] font-bold text-gray-500">
+                          {Number(product.store_rating).toFixed(1)} ({product.store_reviews})
+                        </span>
                       </div>
                       <div className="mt-2">
                         <p className="text-base font-black text-[#C19B6C]">Rp{product.promo_price.toLocaleString('id-ID')}</p>
@@ -321,11 +358,17 @@ useEffect(() => {
                       </div>
                       <div className="mt-3 flex justify-between items-center text-[10px] font-bold text-gray-400 border-t pt-3">
                         <span>{product.store_name}</span>
-                        <span className="flex items-center gap-1"><MapPin size={10} /> {product.distance}km</span>
+                        {/*Jarak Real-Time Di-render di sini */}
+                        <span className="flex items-center gap-1">
+                          <MapPin size={10} /> 
+                          {userLocation && product.store_lat && product.store_lng
+                            ? `${calculateDistance(userLocation.lat, userLocation.lng, product.store_lat, product.store_lng)}km`
+                            : '... km'}
+                        </span>
                       </div>
                     </div>
 
-                    {/* ✅ SMART BUTTON LOGIC */}
+                    {/*SMART BUTTON LOGIC */}
                     <button 
                       disabled={!isOngoing}
                       onClick={(e) => {

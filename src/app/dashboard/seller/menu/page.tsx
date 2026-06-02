@@ -103,7 +103,6 @@ export default function MenuPage() {
         .eq('store_id', storeId)
         .order('created_at', { ascending: false })
       
-      // Biar kalau ada error ghaib lagi, kelihatan di console inspect element
       if (error) {
         console.error("Error Fetch Promos Supabase:", error.message)
       }
@@ -319,7 +318,6 @@ export default function MenuPage() {
                       {p.type.replace('_', ' ')}
                     </div>
 
-                    {/* ✅ BADGE PENANDA CAMPAIGN KANAN ATAS (MAKIN MENCOLOK) */}
                     {p.campaign_id && (
                       <div className="absolute top-5 right-5 px-3 py-2 rounded-full bg-[#b89b6d] shadow-lg flex items-center gap-1.5 z-10 border-2 border-white/50 backdrop-blur-md" title="Tergabung dalam Campaign NyamNow">
                         <Megaphone size={12} className="text-white animate-pulse"/>
@@ -345,7 +343,7 @@ export default function MenuPage() {
                         {p.title || p.products?.name}
                       </h3>
                       
-                      {/* ✅ TOMBOL HAPUS & EDIT */}
+                      {/*TOMBOL HAPUS & EDIT */}
                       <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-2xl flex-shrink-0">
                         <button onClick={() => alert('Fitur Edit Promo segera kita buat!')} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-white rounded-xl transition-all shadow-sm" title="Edit Promo">
                           <Edit2 size={14} />
@@ -484,7 +482,7 @@ export default function MenuPage() {
           menus={menus} 
           onClose={handleClosePromoModal} 
           onSave={handleSavePromo} 
-          isCampaignMode={!!selectedCampaignId} // ✅ INJEKSI KE MODAL
+          isCampaignMode={!!selectedCampaignId}
         />
       )}
     </div>

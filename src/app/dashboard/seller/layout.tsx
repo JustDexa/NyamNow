@@ -4,7 +4,7 @@ import Sidebar from './components/Sidebar'
 export default function SellerLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen w-full bg-[#FDFCF8] overflow-hidden font-sans text-black">
-      {/* SIDEBAR DI KIRI (FIXED) */}
+      {/* SIDEBAR DI KIRI*/}
       <Sidebar />
 
       {/* KONTEN KANAN (NAVBAR + MAIN CONTENT) */}

@@ -30,7 +30,7 @@ export default function TestPage() {
     {
     id: user.id,
     email: user.email,
-    role: 'buyer', // sementara fix dulu
+    role: 'buyer',
     seller_type: null,
     },
   ])

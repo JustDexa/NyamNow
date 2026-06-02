@@ -352,7 +352,6 @@ const handleNotifClick = async (notif: NotificationItem) => {
         </div>
       </nav>
 
-      {/* FILTER DRAWER (Tetap sama) */}
       <AnimatePresence>
         {showFilter && hasSearch && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="absolute left-0 top-full w-full bg-white border-b border-gray-100 overflow-hidden shadow-xl z-40">
@@ -380,7 +379,6 @@ const handleNotifClick = async (notif: NotificationItem) => {
         )}
       </AnimatePresence>
 
-      {/* MODAL LOGIN ESTETIK BUAT GUEST MODE */}
       <AnimatePresence>
         {showAuthModal && (
           <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">

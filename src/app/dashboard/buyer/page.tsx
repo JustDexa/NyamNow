@@ -72,7 +72,7 @@ export default function BuyerDashboard() {
   // STATE DATA
   const [products, setProducts] = useState<Product[]>([])
   const [promos, setPromos] = useState<Promo[]>([])
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]) // ✅ State Campaign
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
   const [userName, setUserName] = useState<string | null>(null)
@@ -412,7 +412,6 @@ export default function BuyerDashboard() {
       <div className="max-w-6xl mx-auto px-4 md:px-6 mt-6 md:mt-8">
         {!isSearching && (
           <>
-            {/* ✅ BANNER CAMPAIGN DINAMIS (Menggantikan Dummy) */}
             {campaigns.length > 0 && (
               <div className="mb-6 md:mb-8">
                 <div className="flex justify-between items-center mb-4 md:mb-5">
@@ -665,7 +664,7 @@ export default function BuyerDashboard() {
         )}
       </div>
 
-      {/* 🤖 POP-UP CHATBOT NYAMBOT & MODAL AUTH */}
+      {/*POP-UP CHATBOT NYAMBOT & MODAL AUTH */}
       <AnimatePresence>
         {showAuthModal && (
           <motion.div

@@ -270,13 +270,11 @@ function CheckoutContent() {
       
       <NavbarBuyer userName={userName} handleLogout={handleLogout} />
 
-      {/* ✅ RESPONSIF: px-4 buat mobile, px-6 buat md */}
       <div className="max-w-5xl mx-auto px-4 md:px-6 mt-6 md:mt-10 relative z-0">
         <h1 className="text-xl md:text-2xl font-black text-gray-900 mb-4 md:mb-6">Konfirmasi Pembayaran</h1>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-6">
           
-          {/* ✅ RESPONSIF: Header tabel disembunyikan di HP, dimunculin di laptop */}
           <div className="hidden md:grid grid-cols-12 gap-4 px-8 py-5 border-b border-gray-100 bg-[#FDFCF8]">
             <div className="col-span-6 text-lg font-black text-[#a08055]">Ringkasan Pesanan</div>
             <div className="col-span-2 text-xs font-black text-gray-500 uppercase flex items-center justify-center">Harga Satuan</div>
@@ -296,7 +294,6 @@ function CheckoutContent() {
               <div className="py-10 text-center text-sm font-bold text-gray-400 italic">Keranjang kamu masih kosong.</div>
             ) : (
               cart.map((item, idx) => (
-                // ✅ RESPONSIF: flex-col di HP, grid-cols-12 di laptop
                 <div key={`${item.id}-${item.variant || 'no-variant'}`} className={`flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 py-5 md:py-6 md:items-center ${idx !== cart.length - 1 ? 'border-b border-gray-100' : ''}`}>
                   
                   {/* Produk Info */}
@@ -311,7 +308,6 @@ function CheckoutContent() {
                           <Edit3 size={10} /> {item.variant}
                         </div>
                       )}
-                      {/* ✅ RESPONSIF: Munculin harga di bawah nama buat HP aja */}
                       <div className="md:hidden text-xs font-black text-[#a08055]">
                         Rp{item.price.toLocaleString('id-ID')}
                       </div>

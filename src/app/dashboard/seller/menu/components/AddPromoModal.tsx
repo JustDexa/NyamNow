@@ -150,7 +150,6 @@ export default function AddPromoModal({ menus, onClose, onSave, isCampaignMode =
             >
               BUNDLE (BUY X GET Y)
             </button>
-            {/* ✅ TOMBOL FLASH SALE MATI KALAU LAGI JOIN CAMPAIGN */}
             <button 
               onClick={() => setPromoType('flash_sale')} 
               disabled={isCampaignMode}

@@ -43,7 +43,7 @@ export default function LoginPage() {
         } else if (userData.role === 'buyer') {
           router.push('/dashboard/buyer')
         } else if (userData.role === 'admin') {
-          router.push('/dashboard/admin') // ✅ Jaga-jaga kalau role-nya beneran admin
+          router.push('/dashboard/admin')
         } else {
           router.push('/')
         }
@@ -84,7 +84,7 @@ export default function LoginPage() {
               required
             />
 
-            {/* ✅ Tombol Lupa Password Dihapus, diganti Modal S&K */}
+            {/*Tombol Lupa Password Dihapus, diganti Modal S&K */}
             <div className="flex flex-col gap-3 px-1 pt-2">
                <label className="flex items-center gap-2 text-[10px] text-gray-500 font-bold uppercase tracking-tight cursor-pointer">
                  <input type="checkbox" className="rounded-sm border-gray-300 w-3 h-3 accent-black" required />
@@ -133,7 +133,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* ✅ MODAL SYARAT & KETENTUAN */}
+      {/*MODAL SYARAT & KETENTUAN */}
       <AnimatePresence>
         {showTerms && (
           <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">

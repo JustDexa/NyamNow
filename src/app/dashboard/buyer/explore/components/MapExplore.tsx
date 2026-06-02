@@ -9,7 +9,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 
 
-// Fix Icon Leaflet
 // @ts-expect-error - Internal Leaflet override
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -58,7 +57,6 @@ export default function MapExplore({
   const [selectedStore, setSelectedStore] = useState<StoreData | null>(null)
   const mapCenter = useMemo(() => userLocation, [userLocation]);
   
-  // Mencegah re-render icon yang tidak perlu
   const userIcon = useMemo(() => L.divIcon({
     className: 'user-pin',
     html: `<div class="relative">
@@ -174,7 +172,7 @@ export default function MapExplore({
                 )}
 
                 <div className="flex gap-3 mt-auto">
-                  {/* ✅ FIX BUG LINK RUTE GOOGLE MAPS */}
+                  {/*FIX BUG LINK RUTE GOOGLE MAPS */}
                   <button onClick={() => window.open(`https://maps.google.com/?q=${selectedStore.latitude},${selectedStore.longitude}`, '_blank')} className="flex-1 bg-[#D4C18D] hover:bg-[#c2ae7a] text-white px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95">
                     <Navigation size={16} fill="currentColor" /> Rute
                   </button>

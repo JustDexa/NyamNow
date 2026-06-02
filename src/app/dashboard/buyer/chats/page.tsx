@@ -56,8 +56,6 @@ function ChatContent() {
       if (convs) {
         const mappedConvs = convs as unknown as Conversation[]
         setConversations(mappedConvs)
-
-        // 2. Kalau ada ?id= di URL, otomatis buka chat itu
         if (targetId) {
           const found = mappedConvs.find(c => c.id === targetId)
           if (found) setActiveChat(found)
@@ -69,7 +67,6 @@ function ChatContent() {
     initBuyerChats()
   }, [targetId, router])
 
-  // LOAD PESAN SAAT CHAT DIPILIH
   useEffect(() => {
     if (!activeChat) return
 

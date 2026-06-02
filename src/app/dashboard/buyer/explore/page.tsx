@@ -26,7 +26,6 @@ export interface StoreData {
   }[]
 }
 
-// Panggil Peta tanpa SSR
 const MapExplore = dynamic(() => import('./components/MapExplore'), { 
   ssr: false,
   loading: () => (
@@ -97,9 +96,8 @@ export default function ExplorePage() {
     }
   }
 
-  // Pas user nge-klik nama toko di hasil pencarian
   const handleSelectStore = (lat: number, lng: number) => {
-    setTargetCoords([lat, lng]) // Kasih tau peta buat geser ke sini
+    setTargetCoords([lat, lng])
     setSearchQuery('')
     setFilteredStores([])
   }
@@ -109,11 +107,9 @@ export default function ExplorePage() {
       
       <NavbarBuyer userName={userName} handleLogout={handleLogout} />
 
-      {/* --- PETA RENDER AREA (mt-[64px] dihapus biar nggak ada putih-putih) --- */}
       {/* --- PETA RENDER AREA --- */}
       <main className="flex-1 z-0 relative flex flex-col">
         
-        {/* 🔍 FLOATING SEARCH BAR PETA (UDAH GANTI JADI z-[9999]) */}
         <div className="absolute top-6 left-1/2 -translate-x-1/2 md:translate-x-0 md:left-8 md:top-8 z-[9999] w-[90%] md:w-96 pointer-events-auto">
           <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-gray-100 flex items-center px-4 py-3.5 focus-within:ring-2 focus-within:ring-[#B89B6D] transition-all">
             <Search size={20} className="text-[#B89B6D] mr-3" />
@@ -154,7 +150,6 @@ export default function ExplorePage() {
           </AnimatePresence>
         </div>
 
-        {/* Kirim targetCoords ke Peta biar tau arah */}
         <MapExplore stores={stores} userLocation={userLocation} targetCoords={targetCoords} />
       </main>
 

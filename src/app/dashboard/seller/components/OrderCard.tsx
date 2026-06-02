@@ -94,7 +94,7 @@ export default function OrderCard({ order, status }: OrderCardProps) {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [order.confirmation_expires_at, status, autoCancelOrder]) // ✅ Ditambahin ke dependency array
+  }, [order.confirmation_expires_at, status, autoCancelOrder])
 
   // --- ACTIONS ---
 
@@ -186,7 +186,6 @@ export default function OrderCard({ order, status }: OrderCardProps) {
       {order.note && (
         <div className="bg-yellow-50/50 border border-yellow-100 rounded-xl p-3 mb-4 flex items-start gap-2">
           <FileText size={14} className="text-yellow-600 mt-0.5 flex-shrink-0" />
-          {/* ✅ 3. Pake &quot; pengganti tanda kutip JSX */}
           <p className="text-[10px] font-bold text-gray-600 italic">&quot;{order.note}&quot;</p>
         </div>
       )}

@@ -88,8 +88,6 @@ export default function CampaignDetailPage() {
 
 
   const handleGunakanPromo = (promo: CampaignPromo) => {
-    // Encode semua info promo ke URL params
-    // Store page akan baca ini untuk: switch ke tab menu + auto-add produk ke cart
     const params = new URLSearchParams({
       tab: 'All Menu',                          // langsung buka tab menu
       apply_promo: promo.id,                    // ID promo yang dipakai

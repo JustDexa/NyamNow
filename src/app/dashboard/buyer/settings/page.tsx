@@ -250,7 +250,6 @@ function SectionProfile() {
     }
 
     const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path)
-    // Paksa cache bust biar gambar langsung kerefresh
     const freshUrl = `${urlData.publicUrl}?t=${Date.now()}`
 
     await supabase.from('users').update({ profile_image_url: freshUrl }).eq('id', profile.id)
@@ -267,8 +266,6 @@ function SectionProfile() {
     if (oldPw === newPw) { setPwError('Password baru tidak boleh sama dengan password lama.'); return }
 
     setPwSaving(true)
-
-    // Re-autentikasi dulu pakai email + password lama
     const { data: { user } } = await supabase.auth.getUser()
     if (!user?.email) { setPwError('Sesi tidak ditemukan, coba login ulang.'); setPwSaving(false); return }
 
@@ -282,8 +279,6 @@ function SectionProfile() {
       setPwSaving(false)
       return
     }
-
-    // Kalau berhasil, update password
     const { error: updateErr } = await supabase.auth.updateUser({ password: newPw })
 
     if (updateErr) {
