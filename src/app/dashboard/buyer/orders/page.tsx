@@ -83,15 +83,17 @@ function BuyerOrderCard({ order, onPay, onReview }: { order: Order, onPay: (id: 
   }, [order.status, order.confirmation_expires_at, order.payment_expires_at, autoCancelOrder])
 
   return (
-    <motion.div layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm overflow-hidden relative text-left">
-      <div className="flex justify-between items-center border-b border-gray-100 pb-3 mb-4">
-        <div className="flex items-center gap-2">
-          <Utensils size={16} className="text-[#B89B6D]" />
-          <span className="font-black text-sm text-gray-900">{order.stores?.name}</span>
-          <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-bold uppercase">{order.order_type}</span>
+    <motion.div layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white border border-gray-200 rounded-2xl p-4 md:p-5 shadow-sm overflow-hidden relative text-left">
+      
+      {/* HEADER: Fix tumpukan & teks kepanjangan */}
+      <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-3 border-b border-gray-100 pb-3 mb-4 w-full">
+        <div className="flex items-center gap-2 max-w-full overflow-hidden pr-2">
+          <Utensils size={16} className="text-[#B89B6D] flex-shrink-0" />
+          <span className="font-black text-sm text-gray-900 truncate">{order.stores?.name}</span>
+          <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-bold uppercase flex-shrink-0">{order.order_type}</span>
         </div>
         
-        <div className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
+        <div className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1 flex-shrink-0 bg-gray-50 md:bg-transparent px-2 md:px-0 py-1 md:py-0 rounded-lg">
           {order.status === 'waiting_confirmation' && <span className="text-orange-500 flex items-center gap-1"><Clock size={12}/> Menunggu ACC</span>}
           {order.status === 'waiting_payment' && <span className="text-blue-500 flex items-center gap-1"><AlertCircle size={12}/> Perlu Dibayar</span>}
           {order.status === 'processing' && <span className="text-purple-500">Sedang Dimasak</span>}
@@ -101,54 +103,55 @@ function BuyerOrderCard({ order, onPay, onReview }: { order: Order, onPay: (id: 
         </div>
       </div>
 
+      {/* ITEMS: Fix varian teks kepanjangan */}
       <div className="space-y-3 mb-4">
         {order.order_items.map(item => (
           <div key={item.id} className="flex items-center gap-3">
-            <img src={item.products?.image_url || '/images/iconNyamnow.png'} className="w-12 h-12 rounded-lg object-cover bg-gray-100" />
-            <div className="flex-1 text-left">
-              <h4 className="text-xs font-black text-gray-900">{item.products?.name}</h4>
-              {item.variant && <p className="text-[9px] text-gray-500 font-bold">{item.variant}</p>}
+            <img src={item.products?.image_url || '/images/iconNyamnow.png'} className="w-12 h-12 rounded-lg object-cover bg-gray-100 flex-shrink-0" />
+            <div className="flex-1 text-left min-w-0">
+              <h4 className="text-xs font-black text-gray-900 truncate">{item.products?.name}</h4>
+              {item.variant && <p className="text-[9px] text-gray-500 font-bold truncate">{item.variant}</p>}
               <p className="text-[10px] text-gray-400">{item.quantity} x Rp{item.price.toLocaleString('id-ID')}</p>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-        <div className="text-left">
+      {/* FOOTER: Fix nyamping di mobile jadi numpuk */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pt-3 border-t border-gray-100 w-full">
+        <div className="text-left flex justify-between w-full md:w-auto md:block items-center">
           <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Total Belanja</p>
           <p className="text-sm font-black text-[#a08055]">Rp{order.grand_total.toLocaleString('id-ID')}</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto">
           {(order.status === 'waiting_confirmation' || order.status === 'waiting_payment') && (
-            <div className="text-right bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100">
+            <div className="text-center md:text-right bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100 flex md:block justify-between items-center w-full md:w-auto">
               <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest">{order.status === 'waiting_payment' ? 'Sisa Waktu Bayar' : 'Batas Konfirmasi'}</p>
               <p className={`text-sm font-black ${isExpired ? 'text-red-500' : 'text-orange-600'}`}>{timeLeft}</p>
             </div>
           )}
 
           {order.status === 'processing' && (
-            <div className="text-right bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100">
+            <div className="text-center md:text-right bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100 flex md:block justify-between items-center w-full md:w-auto">
               <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest">Estimasi Dimasak</p>
               <p className="text-sm font-black text-purple-600">~{finalEstTime} Menit</p>
             </div>
           )}
 
           {order.status === 'waiting_payment' && !isExpired && (
-            <button onClick={() => onPay(order.id, order.grand_total)} className="bg-[#B89B6D] hover:bg-[#a08055] text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center gap-2">
+            <button onClick={() => onPay(order.id, order.grand_total)} className="bg-[#B89B6D] hover:bg-[#a08055] text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 w-full md:w-auto">
               <QrCode size={16} /> Bayar Sekarang
             </button>
           )}
 
-          {/* TOMBOL BERI ULASAN */}
           {order.status === 'completed' && !order.is_reviewed && (
-            <button onClick={() => onReview(order.id, order.store_id)} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center gap-2">
+            <button onClick={() => onReview(order.id, order.store_id)} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 w-full md:w-auto">
               <Star size={16} className="fill-white" /> Beri Ulasan
             </button>
           )}
           {order.status === 'completed' && order.is_reviewed && (
-            <div className="bg-gray-100 text-gray-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1 border border-gray-200">
+            <div className="bg-gray-100 text-gray-500 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1 border border-gray-200 w-full md:w-auto">
               <CheckCircle2 size={14} /> Sudah Dinilai
             </div>
           )}
@@ -253,11 +256,13 @@ function OrdersContent() {
     <div className="min-h-screen bg-[#FDFCF8] text-black font-sans antialiased pb-20">
       <NavbarBuyer userName={userName} handleLogout={() => supabase.auth.signOut().then(() => router.push('/login'))} />
 
-      <div className="max-w-6xl mx-auto px-6 mt-8 text-center">
-        <h1 className="text-2xl font-black text-gray-900 mb-6 uppercase italic tracking-tighter text-left">Riwayat Pesanan</h1>
+      {/* FIXED: Padding HP dikecilin biar gak nabrak */}
+      <div className="max-w-6xl mx-auto px-4 md:px-6 mt-6 md:mt-8 text-center w-full">
+        <h1 className="text-xl md:text-2xl font-black text-gray-900 mb-4 md:mb-6 uppercase italic tracking-tighter text-left">Riwayat Pesanan</h1>
 
-        <div className="mb-8 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 w-fit mx-auto min-w-full md:min-w-0">
-          <div className="flex flex-row items-center gap-1 overflow-x-auto no-scrollbar">
+        {/* FIXED: Container tab dibuat w-full dan disembunyiin overflow luarnya */}
+        <div className="mb-6 md:mb-8 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden mx-auto">
+          <div className="flex flex-row items-center gap-1 overflow-x-auto no-scrollbar pb-1 w-full">
             {TABS.map(tab => {
               const isActive = activeTab === tab.id
               const count = orders.filter(o => tab.statuses.includes(o.status)).length
@@ -296,11 +301,11 @@ function OrdersContent() {
           )}
         </AnimatePresence>
 
-        <div className="max-w-4xl mx-auto space-y-4">
+        <div className="max-w-4xl mx-auto space-y-4 w-full">
           {isLoading ? (
             <div className="py-20 text-[#B89B6D] font-black animate-pulse">Memuat Pesanan...</div>
           ) : filteredOrders.length === 0 ? (
-            <div className="py-20 text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200">
+            <div className="py-20 text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200 w-full">
               <ShoppingBag size={48} className="mx-auto mb-4 opacity-30" />
               <p className="font-bold text-sm">Belum ada pesanan di kategori ini.</p>
             </div>
@@ -317,8 +322,8 @@ function OrdersContent() {
       {/*MODAL SIMULASI PEMBAYARAN */}
       <AnimatePresence>
         {paymentModal.isOpen && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="bg-white p-8 rounded-[2rem] shadow-2xl w-full max-w-md relative text-center">
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm w-full">
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="bg-white p-6 md:p-8 rounded-[2rem] shadow-2xl w-full max-w-md relative text-center">
               <button onClick={() => setPaymentModal({ isOpen: false, orderId: '', amount: 0 })} className="absolute top-5 right-5 p-2 bg-gray-100 rounded-full text-gray-400 hover:text-red-500"><XCircle size={20} /></button>
 
               <div className="w-16 h-16 bg-[#FAF4EB] rounded-full flex items-center justify-center mx-auto mb-4 text-[#B89B6D]">
@@ -329,7 +334,7 @@ function OrdersContent() {
 
               <div className="bg-[#FAF4EB] rounded-2xl p-4 mb-6 border border-[#EAE2D3]">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Tagihan</p>
-                <p className="text-3xl font-black text-[#B89B6D]">Rp {paymentModal.amount.toLocaleString('id-ID')}</p>
+                <p className="text-2xl md:text-3xl font-black text-[#B89B6D]">Rp {paymentModal.amount.toLocaleString('id-ID')}</p>
               </div>
 
               <button
@@ -347,8 +352,8 @@ function OrdersContent() {
       {/* MODAL REVIEW */}
       <AnimatePresence>
         {reviewModal.isOpen && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="bg-white p-8 rounded-[2rem] shadow-2xl w-full max-w-md relative text-center">
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm w-full">
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="bg-white p-6 md:p-8 rounded-[2rem] shadow-2xl w-full max-w-md relative text-center">
               <button onClick={() => setReviewModal({ isOpen: false, orderId: '', storeId: '' })} className="absolute top-5 right-5 p-2 bg-gray-100 rounded-full text-gray-400 hover:text-red-500"><XCircle size={20} /></button>
               
               <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 text-yellow-500"><Star size={32} className="fill-yellow-500" /></div>
@@ -358,8 +363,7 @@ function OrdersContent() {
               <div className="flex justify-center gap-2 mb-6">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button key={star} onClick={() => setReviewRating(star)} className="focus:outline-none transform hover:scale-110 transition-transform">
-                    <Star size={36} className={`transition-colors ${star <= reviewRating ? 'fill-yellow-400 text-yellow-400' : 'fill-gray-200 text-gray-200'}`} />
-                  </button>
+                  <Star className={`w-8 h-8 md:w-9 md:h-9 transition-colors ${star <= reviewRating ? 'fill-yellow-400 text-yellow-400' : 'fill-gray-200 text-gray-200'}`} />                  </button>
                 ))}
               </div>
 
